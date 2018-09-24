@@ -16,7 +16,7 @@
 #define LOG_FLAG_JAVA 2
 #define LOG_FLAG_EXCEPTION 4
 
-#define WITH_TRACE
+//#define WITH_TRACE
 
 #define TRACE_ERR(fmt, arg...)  { FlowTraceLogWrite(6, __FUNCTION__, __LINE__, fmt, ##arg); }
 #define TRACE_INFO(fmt, arg...) { FlowTraceLogWrite(4, __FUNCTION__, __LINE__, fmt, ##arg); }
