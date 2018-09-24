@@ -5,8 +5,6 @@
 #ifndef FLOWTRACEANDROID_FLOWTRACE_H
 #define FLOWTRACEANDROID_FLOWTRACE_H
 
-//#define USE_UDP 1
-
 #define MAX_APP_PATH_LEN 128
 #define MAX_APP_NAME_LEN 128
 #define MAX_MODULE_NAME_LEN 128
@@ -96,9 +94,5 @@ void FlowTraceSendLog(const char* module_name, int cb_module_name, unsigned int 
 int FlowTraceSendTrace(UDP_LOG_Severity severity, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, ...)  __attribute__((used));
 void init_dalvik_hook();
 int init_sender(char* ip, int port);
-#ifdef USE_UDP
-void send_udp_package( NET_PACK* pack );
-#else
-void send_rec( LOG_REC* rec );
-#endif
+void net_send_pack( NET_PACK* pack  );
 #endif //FLOWTRACEANDROID_FLOWTRACE_H

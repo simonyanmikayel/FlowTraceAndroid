@@ -3,11 +3,9 @@
 //
 
 #include <string.h>
-//#include <cstdio>
 #include <syslog.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <ctype.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
@@ -17,68 +15,69 @@
 #include <time.h>
 #include <semaphore.h>
 
-static int sock = -1;
+static pthread_mutex_t g_mutex;
+static int working = 1;
+static struct timespec wait = {3, 0};
+#define MAX_NET_BUF 16*1024  //maximum TCP window size in Microsoft Windows 2000 is 17,520 bytes
+static char* buf[MAX_NET_BUF + sizeof(NET_PACK_INFO)];
+NET_PACK* netPackCache = (NET_PACK*)buf;
+static struct sockaddr_in server;
+static sem_t sema;
+static struct timespec time_stamp;
+static int waiting = 0;
 
-#ifdef USE_UDP
+static char* net_ip;
+static int net_port;
+
+static int udpSock = -1;
+static int tcpSock = -1;
+
 static struct sockaddr_in send_sin;
 
-int init_sender(char* ip, int port)
+static int init_udp_socket()
 {
     //create a UDP socket
-    if ((sock=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+    if ((udpSock=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
     {
         TRACE_ERR("socket error: %s, %d\n", strerror(errno), errno);
         return 0;
     }
 
     send_sin.sin_family = AF_INET;
-    send_sin.sin_port = htons(port);
-    if (inet_aton(ip, &send_sin.sin_addr) == 0)
+    send_sin.sin_port = htons(net_port);
+    if (inet_aton(net_ip, &send_sin.sin_addr) == 0)
     {
-        close(sock);
-        sock = -1;
+        close(udpSock);
+        udpSock = -1;
         TRACE_ERR("inet_aton error: %s, %d\n", strerror(errno), errno);
         return 0;
     }
     return 1;
 }
 
-void send_udp_package( NET_PACK* netPack )
+static void udp_send_package( NET_PACK* pack )
 {
-    if (sock < 0)
+    if (udpSock < 0 || pack->info.data_len == 0)
         return;
     struct timespec time_stamp;
     clock_gettime( CLOCK_REALTIME, &time_stamp );
-    netPack->info.term_sec = time_stamp.tv_sec;
-    netPack->info.term_msec = time_stamp.tv_nsec / 1000000;
-    if (sendto(sock, netPack, netPack->info.data_len + sizeof(NET_PACK_INFO), 0, (struct sockaddr*) &send_sin, sizeof(send_sin)) < 0)
+    pack->info.term_sec = time_stamp.tv_sec;
+    pack->info.term_msec = time_stamp.tv_nsec / 1000000;
+    if (sendto(udpSock, pack, pack->info.data_len + sizeof(NET_PACK_INFO), 0, (struct sockaddr*) &send_sin, sizeof(send_sin)) < 0)
     {
-        close(sock);
-        sock = -1;
+        close(udpSock);
+        udpSock = -1;
         TRACE_ERR("sendto error: %s, %d\n", strerror(errno), errno);
+    } else {
+        pack->info.data_len = 0;
     }
 }
 
-#else //USE_UDP
-static pthread_mutex_t g_mutex;
-static int working = 1;
-static struct timespec wait = {3, 0};
-#define MAX_NET_BUF 16*1024  //maximum TCP window size in Microsoft Windows 2000 is 17,520 bytes 
-static char* buf[MAX_NET_BUF + sizeof(NET_PACK_INFO)];
-NET_PACK* netPack = (NET_PACK*)buf;
-static struct sockaddr_in server;
-static char* srvr_ip;
-static int srvr_port;
-static sem_t sema;
-static struct timespec time_stamp;
-static int waiting = 0;
-
-static void reset()
+static void resetTcpSocket()
 {
-    netPack->info.data_len = 0;
-    if (sock != -1) {
-        close(sock);
-        sock = -1;
+    if (tcpSock != -1) {
+        close(tcpSock);
+        tcpSock = -1;
     }
     sem_post(&sema);
 }
@@ -95,94 +94,111 @@ static void unlock(const char* coller, int call_line)
     pthread_mutex_unlock( &g_mutex );
 }
 
-static void send_pack( )
+static void tcp_send_pack( )
 {
-    if (sock == -1)
+    if (tcpSock == -1 || netPackCache->info.data_len == 0)
     {
-        netPack->info.data_len = 0;
         return;
     }
-    TRACE(" Sending %d bytes from thread %d\n", netPack->info.data_len + sizeof(NET_PACK_INFO), pthread_self());
+    TRACE(" Sending %d bytes from thread %d\n", netPackCache->info.data_len + sizeof(NET_PACK_INFO), pthread_self());
     clock_gettime( CLOCK_REALTIME, &time_stamp );
-    netPack->info.term_sec = time_stamp.tv_sec;
-    netPack->info.term_msec = time_stamp.tv_nsec / 1000000;
-    if( netPack->info.data_len && send(sock , netPack , netPack->info.data_len + sizeof(NET_PACK_INFO), 0) < 0)
+    netPackCache->info.term_sec = time_stamp.tv_sec;
+    netPackCache->info.term_msec = time_stamp.tv_nsec / 1000000;
+    if( netPackCache->info.data_len && send(tcpSock , netPackCache , netPackCache->info.data_len + sizeof(NET_PACK_INFO), 0) < 0)
     {
         TRACE_ERR("Send failed");
-        reset();
+        resetTcpSocket();
+    } else {
+        netPackCache->info.data_len = 0;
     }
-    netPack->info.data_len = 0;
 
 }
 
 static void* send_thread (void *arg)
 {
     TRACE("started send thread\n");
+
+    server.sin_addr.s_addr = inet_addr(net_ip);
+    server.sin_family = AF_INET;
+    server.sin_port = htons( net_port );
+
     while (working)
     {
-        if (sock == -1)
+        if (tcpSock == -1)
         {
-            sock = socket(AF_INET , SOCK_STREAM , 0);
-            if (sock == -1)
+            tcpSock = socket(AF_INET , SOCK_STREAM , 0);
+            if (tcpSock == -1)
             {
                 TRACE_ERR("Could not create socket\n");
                 break;
             }
-            if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0)
+            if (connect(tcpSock , (struct sockaddr *)&server , sizeof(server)) < 0)
             {
-                TRACE_ERR("Could not connect to %s:%d", srvr_ip, srvr_port);
+                TRACE_ERR("Could not connect to %s:%d", net_ip, net_port);
+                resetTcpSocket();
                 continue;
             }
         }
         waiting = 1;
         sem_wait(&sema);
         waiting = 0;
-        lock(__FUNCTION__, __LINE__);
-        send_pack();
-        unlock(__FUNCTION__, __LINE__);
+        if (working)
+        {
+            lock(__FUNCTION__, __LINE__);
+            tcp_send_pack();
+            unlock(__FUNCTION__, __LINE__);
+        }
     }
 
     TRACE("exit send thread\n");
     return 0;
 }
 
-void send_rec( LOG_REC* rec )
+void net_send_pack( NET_PACK* pack )
 {
-    if (sock == -1 || rec->len == 0) {
+    // we have 1 record in pack
+    LOG_REC* rec  = (LOG_REC*)(pack->data);
+
+    lock(__FUNCTION__, __LINE__);
+    if (tcpSock == -1 && (rec->len + netPackCache->info.data_len >= MAX_NET_BUF))
+    {
+        udp_send_package(netPackCache);
+        udp_send_package(pack);
         if (waiting) {
             sem_post(&sema); //trigger connection
         }
-        return;
     }
-    lock(__FUNCTION__, __LINE__);
-    if (rec->len + netPack->info.data_len >= MAX_NET_BUF)
+    else
     {
-        send_pack();
+        if (rec->len + netPackCache->info.data_len >= MAX_NET_BUF)
+        {
+            tcp_send_pack();
+        }
+        if (rec->len + netPackCache->info.data_len < MAX_NET_BUF) {
+            memcpy(netPackCache->data + netPackCache->info.data_len, rec, rec->len);
+            netPackCache->info.data_len += rec->len;
+        }
+        sem_post(&sema);
     }
-    memcpy(netPack->data + netPack->info.data_len, rec, rec->len);
-    netPack->info.data_len += rec->len;
-    sem_post(&sema);
     unlock(__FUNCTION__, __LINE__);
 }
 
-int init_sender(char* ip, int port)
+int init_sender(char* p_ip, int p_port)
 {
+    net_ip = strdup(p_ip);
+    net_port = p_port;
     sem_init(&sema, 0,0);
-
-    srvr_ip = strdup(ip);
-    srvr_port = port;
-    server.sin_addr.s_addr = inet_addr(ip);
-    server.sin_family = AF_INET;
-    server.sin_port = htons( port );
 
     pthread_mutex_init( &g_mutex, NULL );
     pthread_t threadId;
-    if (pthread_create(&threadId, NULL, &send_thread, NULL) != 0)
+    int udp_ok = init_udp_socket();
+    int tcp_ok = (pthread_create(&threadId, NULL, &send_thread, NULL) == 0);
+    if ( !tcp_ok )
     {
-        TRACE_ERR("Error creating thread\n");
+        TRACE_ERR("Error creating thread for tcp receive\n");
         return 0;
     }
-    return 1;
+    return udp_ok || tcp_ok;
 }
 
 static void exit_udp_trace(void) __attribute__((destructor));
@@ -190,7 +206,7 @@ static void exit_udp_trace(void) __attribute__((no_instrument_function));
 static void exit_udp_trace(void)
 {
     working = 0;
-    reset();
+    resetTcpSocket();
+    sem_post(&sema);
+    sem_destroy(&sema);
 }
-
-#endif //USE_UDP

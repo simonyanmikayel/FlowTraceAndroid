@@ -23,8 +23,8 @@ int initialized = 0;
 char app_name[MAX_APP_NAME_LEN + 1] = {0};
 int cb_app_name = 0;
 int app_pid = 0;
-static char ip[SMAL_BUF_SIZE + 1] = { 0 };
-static int port = 0;
+char ip[SMAL_BUF_SIZE + 1] = { 0 };
+int port = 0;
 static int NN = 0;
 
 static void get_app_path(char* name, int pid)
@@ -227,12 +227,8 @@ void FlowTraceSendLog(const char* module_name, int cb_module_name, unsigned int 
 
     rec->len = len;
 
-#ifdef USE_UDP
     pack->info.data_len = len;
-    send_udp_package(pack);
-#else
-    send_rec( rec );
-#endif
+    net_send_pack(pack);
 }
 
 static int send_trace(UDP_LOG_Severity severity, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, va_list args)
