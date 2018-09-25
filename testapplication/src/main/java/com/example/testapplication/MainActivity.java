@@ -1,6 +1,7 @@
 package com.example.testapplication;
 
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
@@ -18,6 +19,8 @@ public class MainActivity extends AppCompatActivity {
     static {
         System.loadLibrary("native-lib");
     }
+
+    private final Handler mHandler = new Handler();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,6 +74,12 @@ public class MainActivity extends AppCompatActivity {
         dummy++;
         Log.e("TEST e", "test exception", new Exception("exception thrown"));
         doDummy_2();
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                Log.d("TEST d", "In run");
+            }
+        });
     }
 
     void doDummy_2()

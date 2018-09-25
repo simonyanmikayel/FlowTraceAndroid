@@ -15,6 +15,8 @@
 #include <time.h>
 #include <semaphore.h>
 
+//#define USE_TCP
+
 static pthread_mutex_t g_mutex;
 static int working = 1;
 static struct timespec wait = {3, 0};
@@ -116,6 +118,9 @@ static void tcp_send_pack( )
 
 static void* send_thread (void *arg)
 {
+#ifndef USE_TCP
+    return 0;
+#endif
     TRACE("started send thread\n");
 
     server.sin_addr.s_addr = inet_addr(net_ip);
@@ -157,8 +162,11 @@ static void* send_thread (void *arg)
 void net_send_pack( NET_PACK* pack )
 {
     // we have 1 record in pack
-    LOG_REC* rec  = (LOG_REC*)(pack->data);
 
+#ifndef USE_TCP
+    udp_send_package(pack);
+#else
+    LOG_REC* rec  = (LOG_REC*)(pack->data);
     lock(__FUNCTION__, __LINE__);
     if (tcpSock == -1 && (rec->len + netPackCache->info.data_len >= MAX_NET_BUF))
     {
@@ -181,6 +189,7 @@ void net_send_pack( NET_PACK* pack )
         sem_post(&sema);
     }
     unlock(__FUNCTION__, __LINE__);
+#endif
 }
 
 int init_sender(char* p_ip, int p_port)

@@ -10,8 +10,6 @@ import proguard.classfile.attribute.visitor.AttributeVisitor;
 import proguard.classfile.constant.*;
 import proguard.classfile.editor.CodeAttributeEditor;
 import proguard.classfile.editor.InstructionSequenceBuilder;
-import proguard.classfile.instruction.BranchInstruction;
-import proguard.classfile.instruction.ConstantInstruction;
 import proguard.classfile.instruction.Instruction;
 import proguard.classfile.instruction.InstructionConstants;
 import proguard.classfile.instruction.SimpleInstruction;
@@ -30,14 +28,14 @@ import java.io.IOException;
 import static proguard.classfile.util.ClassUtil.internalClassName;
 
 public class FlowTraceInjector
-extends SimplifiedVisitor
-implements
+        extends SimplifiedVisitor
+        implements
         ClassVisitor,
         MemberVisitor,
         AttributeVisitor,
         InstructionVisitor
 {
-    static final boolean DEBUG = false;
+    static final boolean DEBUG = true;
     private final Configuration configuration;
     private CodeAttributeEditor codeAttributeEditor;
     // Field acting as parameter for the visitor methods.
@@ -48,9 +46,7 @@ implements
     private final String LOGGER_CLASS_NAME = ClassUtil.internalClassName(proguard.inject.FlowTraceWriter.class.getName());
 
     private int returnOffset;
-
-    public static final int LOG_INFO_ENTER = 0;
-    public static final int LOG_INFO_EXIT = 1;
+    private boolean inRunnable = false;
 
 
     /**
@@ -101,6 +97,26 @@ implements
                         this));
     }
 
+    public boolean isRunnable(ProgramClass programClass)
+    {
+        if (programClass.getInterfaceCount() < 1)
+            return false;
+
+        String interfaceName = programClass.getInterfaceName(0);
+        if (interfaceName == null)
+            return false;
+
+        return interfaceName.equals("java/lang/Runnable");
+    }
+
+    int enterParam() {
+        return inRunnable ? (FlowTraceWriter.JAVA_LOG_ENTER | FlowTraceWriter.JAVA_LOG_RUNNABLE) : FlowTraceWriter.JAVA_LOG_ENTER;
+    }
+
+    int exitParam() {
+        return inRunnable ? (FlowTraceWriter.JAVA_LOG_EXIT | FlowTraceWriter.JAVA_LOG_RUNNABLE) : FlowTraceWriter.JAVA_LOG_EXIT;
+    }
+
     @Override
     public void visitProgramClass(ProgramClass programClass)
     {
@@ -110,6 +126,8 @@ implements
         }
         injectedClassMap.put(programClass.getName(), internalClassName(FlowTraceWriter.class.getName()));
         injectedClassMap.put(programClass.getName(), internalClassName(FlowTraceWriter.MethodSignature.class.getName()));
+
+        inRunnable = isRunnable(programClass);
 
         ____ = new InstructionSequenceBuilder(programClass, programClassPool, libraryClassPool);
         programClass.methodsAccept(this);
@@ -128,16 +146,15 @@ implements
         codeAttributeEditor.reset(codeAttribute.u4codeLength);
         returnOffset = 0;
 
-
         codeAttribute.instructionsAccept(clazz, method, this);
 
         if (returnOffset == 0)
         {
             codeAttributeEditor.insertBeforeInstruction(0,
                     ____.
-                            ldc(LOG_INFO_ENTER).
+                            ldc(enterParam()).
                             invokestatic(LOGGER_CLASS_NAME, "logFlow", "(I)V").
-                            ldc(LOG_INFO_EXIT).
+                            ldc(exitParam()).
                             invokestatic(LOGGER_CLASS_NAME, "logFlow", "(I)V").
                             __());
         }
@@ -145,7 +162,7 @@ implements
         {
             codeAttributeEditor.insertBeforeInstruction(0,
                     ____.
-                            ldc(LOG_INFO_ENTER).
+                            ldc(enterParam()).
                             invokestatic(LOGGER_CLASS_NAME, "logFlow", "(I)V").
                             __());
         }
@@ -176,7 +193,7 @@ implements
             {
                 codeAttributeEditor.insertBeforeInstruction(offset,
                         ____.
-                                ldc(LOG_INFO_EXIT).
+                                ldc(exitParam()).
                                 invokestatic(LOGGER_CLASS_NAME, "logFlow", "(I)V").
                                 __());
             }

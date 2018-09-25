@@ -382,7 +382,7 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogFlow(
         JNIEnv *env, jclass type,
         jstring  thisClassName, jstring thisMethodName,
         jstring callClassName, jstring callMethodName,
-        jint log_type, jint thisID, jint callID,
+        jint jav_log_type, jint thisID, jint callID,
         jint thisLineNumber, jint callLineNumber
 )
 {
@@ -403,6 +403,7 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogFlow(
         cb_trace = MAX_FUNC_NAME_LEN;
     }
 
+    short log_type =  ((jav_log_type & JAVA_LOG_ENTER) ==  JAVA_LOG_ENTER) ? LOG_INFO_ENTER : LOG_INFO_EXIT;
     //TRACE_INFO("%d %s %s %s (%d) %d [%s] %s %s (%d) %d ", log_type, (log_type == 0 ? "Before -> " : "After <- "), szThisClassName, szThisMethodName, thisID, thisLineNumber, (log_type == 0 ? "->" : "<-"), szCallClassName, szCallMethodName, callID, callLineNumber);
 
     //! Very confusing parameters names for FlowTraceSendLog.

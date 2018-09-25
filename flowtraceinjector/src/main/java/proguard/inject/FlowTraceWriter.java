@@ -6,6 +6,9 @@ import java.util.Arrays;
 
 public class FlowTraceWriter {
 
+    public static final int JAVA_LOG_ENTER = 1;
+    public static final int JAVA_LOG_EXIT = 2;
+    public static final int JAVA_LOG_RUNNABLE = 4;
     static boolean initialized = false;
     public static native int initTraces();
     public static native void FlowTraceLogFlow(String thisClassName, String thisMethodName, String callClassName, String callMethodName, int log_type, int thisID, int callID, int thisLineNumber, int callLineNumber);
@@ -43,7 +46,7 @@ public class FlowTraceWriter {
         int thisID = thisClassName.hashCode() +  31 * thisMethodName.hashCode();;
         int callID = callClassName.hashCode() +  31 * callMethodName.hashCode();;
 
-        //System.out.println((log_type == 0 ? "logg enter -> " : "logg exit <- ") + thisClassName + " " + thisMethodName + " "  + thisLineNumber + " " + callClassName + " " + callMethodName + " "  + callLineNumber);
+        //System.out.println((((log_type & JAVA_LOG_ENTER) ==  JAVA_LOG_ENTER) ? " -> " : " <- ") + thisClassName + " " + thisMethodName + " "  + thisLineNumber + " " + callClassName + " " + callMethodName + " "  + callLineNumber);
         FlowTraceLogFlow(thisClassName, thisMethodName, callClassName, callMethodName, log_type, thisID, callID, thisLineNumber, callLineNumber);
     }
 

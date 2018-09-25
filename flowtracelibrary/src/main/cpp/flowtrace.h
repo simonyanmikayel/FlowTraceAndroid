@@ -39,6 +39,10 @@ typedef enum {
     UDP_LOG_COMMON,
 } UDP_LOG_Severity;
 
+#define JAVA_LOG_ENTER     1
+#define JAVA_LOG_EXIT      2
+#define JAVA_LOG_RUNNABLE  4
+
 typedef enum {
     LOG_INFO_ENTER,
     LOG_INFO_EXIT,
