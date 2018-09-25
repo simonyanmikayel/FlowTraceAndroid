@@ -15,6 +15,8 @@
 #define LOG_FLAG_NEW_LINE 1
 #define LOG_FLAG_JAVA 2
 #define LOG_FLAG_EXCEPTION 4
+#define LOG_FLAG_RUNNABLE_INIT 8
+#define LOG_FLAG_RUNNABLE_RUN 16
 
 //#define WITH_TRACE
 
@@ -38,10 +40,6 @@ typedef enum {
     UDP_LOG_DEBUG,
     UDP_LOG_COMMON,
 } UDP_LOG_Severity;
-
-#define JAVA_LOG_ENTER     1
-#define JAVA_LOG_EXIT      2
-#define JAVA_LOG_RUNNABLE  4
 
 typedef enum {
     LOG_INFO_ENTER,

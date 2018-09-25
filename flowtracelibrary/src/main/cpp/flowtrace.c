@@ -344,8 +344,8 @@ int FlowTraceSendTrace(UDP_LOG_Severity severity, int flags, const char* fn_name
 JNIEXPORT void JNICALL
 Java_proguard_inject_FlowTraceWriter_FlowTraceLogTrace(
         JNIEnv *env, jclass type, jint severity,
-        jstring  thisClassName, jstring thisMethodName, jint callLineNumber,
-        jstring tag, jstring msg, jint isException
+        jstring  thisClassName, jstring thisMethodName, jint thisLineNumber, jint callLineNumber,
+        jstring tag, jstring msg, jint flags
 )
 {
     const char *szThisClassName = (*env)->GetStringUTFChars(env, thisClassName, 0);
@@ -361,10 +361,10 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogTrace(
 
     FlowTraceSendTrace(
             severity,
-            LOG_FLAG_JAVA | (isException ? LOG_FLAG_EXCEPTION : 0), //flags
+            flags, //flags
             fn_name,
             cb_fn_name,
-            0, //fn_line
+            thisLineNumber, //fn_line
             callLineNumber, //call_line
             "%s: %s\n", // fmt
             szTag, szMsg
@@ -382,7 +382,7 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogFlow(
         JNIEnv *env, jclass type,
         jstring  thisClassName, jstring thisMethodName,
         jstring callClassName, jstring callMethodName,
-        jint jav_log_type, jint thisID, jint callID,
+        jint log_type, jint thisID, jint callID,
         jint thisLineNumber, jint callLineNumber
 )
 {
@@ -403,7 +403,6 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogFlow(
         cb_trace = MAX_FUNC_NAME_LEN;
     }
 
-    short log_type =  ((jav_log_type & JAVA_LOG_ENTER) ==  JAVA_LOG_ENTER) ? LOG_INFO_ENTER : LOG_INFO_EXIT;
     //TRACE_INFO("%d %s %s %s (%d) %d [%s] %s %s (%d) %d ", log_type, (log_type == 0 ? "Before -> " : "After <- "), szThisClassName, szThisMethodName, thisID, thisLineNumber, (log_type == 0 ? "->" : "<-"), szCallClassName, szCallMethodName, callID, callLineNumber);
 
     //! Very confusing parameters names for FlowTraceSendLog.

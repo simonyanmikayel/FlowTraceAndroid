@@ -74,12 +74,12 @@ public class MainActivity extends AppCompatActivity {
         dummy++;
         Log.e("TEST e", "test exception", new Exception("exception thrown"));
         doDummy_2();
-        mHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                Log.d("TEST d", "In run");
-            }
-        });
+//        mHandler.post(new Runnable() {
+//            @Override
+//            public void run() {
+//                Log.d("TEST d", "In run");
+//            }
+//        });
     }
 
     void doDummy_2()

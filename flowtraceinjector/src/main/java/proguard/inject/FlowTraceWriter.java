@@ -6,13 +6,22 @@ import java.util.Arrays;
 
 public class FlowTraceWriter {
 
-    public static final int JAVA_LOG_ENTER = 1;
-    public static final int JAVA_LOG_EXIT = 2;
-    public static final int JAVA_LOG_RUNNABLE = 4;
     static boolean initialized = false;
     public static native int initTraces();
     public static native void FlowTraceLogFlow(String thisClassName, String thisMethodName, String callClassName, String callMethodName, int log_type, int thisID, int callID, int thisLineNumber, int callLineNumber);
-    public static native void FlowTraceLogTrace(int severity, String thisClassName, String thisMethodName, int callLineNumber, String tag, String msg, int isException);
+    public static native void FlowTraceLogTrace(int severity, String thisClassName, String thisMethodName, int thisLineNumber, int callLineNumber, String tag, String msg, int flags);
+
+    public static final int LOG_FATAL = 0;
+    public static final int LOG_ERROR = 1;
+    public static final int LOG_WARNING = 2;
+    public static final int LOG_INFO = 3;
+    public static final int LOG_DEBUG = 4;
+    public static final int LOG_COMMON = 5;
+    public static final int LOG_FLAG_JAVA = 2;
+    public static final int LOG_FLAG_EXCEPTION = 4;
+    public static final int LOG_FLAG_RUNNABLE_INIT = 8;
+    public static final int LOG_FLAG_RUNNABLE_RUN = 16;
+
 
     static {
         System.loadLibrary("flowtrace");
@@ -46,16 +55,37 @@ public class FlowTraceWriter {
         int thisID = thisClassName.hashCode() +  31 * thisMethodName.hashCode();;
         int callID = callClassName.hashCode() +  31 * callMethodName.hashCode();;
 
-        //System.out.println((((log_type & JAVA_LOG_ENTER) ==  JAVA_LOG_ENTER) ? " -> " : " <- ") + thisClassName + " " + thisMethodName + " "  + thisLineNumber + " " + callClassName + " " + callMethodName + " "  + callLineNumber);
+        //System.out.println((log_type == 0) ? " -> " : " <- ") + thisClassName + " " + thisMethodName + " "  + thisLineNumber + " " + callClassName + " " + callMethodName + " "  + callLineNumber);
         FlowTraceLogFlow(thisClassName, thisMethodName, callClassName, callMethodName, log_type, thisID, callID, thisLineNumber, callLineNumber);
     }
+
+    static public void logRunnable(int runnableMethod, Object o)
+    {
+        String thisClassName = "";
+        String thisMethodName = "";
+        int callLineNumber = -1;
+        int flags = LOG_FLAG_JAVA | (runnableMethod == 1 ? LOG_FLAG_RUNNABLE_INIT : LOG_FLAG_RUNNABLE_RUN);
+
+        int s1 = 3;
+        StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+        if (stack.length <= s1) {
+            return;
+        }
+        thisClassName = stack[s1].getClassName();
+        thisMethodName = stack[s1].getMethodName();
+        callLineNumber = stack[s1].getLineNumber();
+
+        //System.out.println("   ----------------->" + (runnableMethod == 1 ? " <init> " : " run ") + o.hashCode());
+        FlowTraceLogTrace(LOG_DEBUG, thisClassName, thisMethodName, o.hashCode(), callLineNumber, "Runnable " + o.hashCode(), runnableMethod == 1 ? "<init>" : "run", flags);
+    }
+
 
     static public void logTrace(int severity, String tag, String msg, Throwable exception)
     {
         String thisClassName = "";
         String thisMethodName = "";
         int callLineNumber = -1;
-        int isException = 0;
+        int flags = LOG_FLAG_JAVA;
 
         int s1 = 4;
         StackTraceElement[] stack = Thread.currentThread().getStackTrace();
@@ -68,13 +98,13 @@ public class FlowTraceWriter {
 
         if (exception != null)
         {
-            isException = 1;
+            flags |= LOG_FLAG_EXCEPTION;
             StringWriter writer = new StringWriter();
             PrintWriter printWriter= new PrintWriter(writer);
             exception.printStackTrace(printWriter);
             msg = msg + "\n" + writer.toString();
         }
-        FlowTraceLogTrace(severity, thisClassName, thisMethodName, callLineNumber, tag, msg, isException);
+        //FlowTraceLogTrace(severity, thisClassName, thisMethodName, 0, callLineNumber, tag, msg, flags);
     }
 
     public static class MethodSignature
