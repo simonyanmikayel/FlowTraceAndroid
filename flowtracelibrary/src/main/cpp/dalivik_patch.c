@@ -206,6 +206,8 @@ int do_patch()
 
     dh_log_flowtrace.sm = 1;
     dalvik_resolve(&dh_log_logTrace, "Lproguard/inject/FlowTraceWriter;",  "logTrace",  "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)V", 0);
+    if (dh_log_logTrace.mid == 0)
+        TRACE_ERR("Could not resolve proguard.inject.FlowTraceWriter.logTrace\n");
 
     dalvik_hook_setup(&dh_log_d1, "Landroid/util/Log;",  "d",  "(Ljava/lang/String;Ljava/lang/String;)I", 2, hook_log_d1);
     dalvik_hook_setup(&dh_log_d2, "Landroid/util/Log;",  "d",  "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I", 3, hook_log_d2);

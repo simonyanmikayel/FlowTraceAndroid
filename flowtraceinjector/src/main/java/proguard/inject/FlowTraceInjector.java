@@ -10,6 +10,7 @@ import proguard.classfile.attribute.visitor.AttributeVisitor;
 import proguard.classfile.constant.*;
 import proguard.classfile.editor.CodeAttributeEditor;
 import proguard.classfile.editor.InstructionSequenceBuilder;
+import proguard.classfile.instruction.ConstantInstruction;
 import proguard.classfile.instruction.Instruction;
 import proguard.classfile.instruction.InstructionConstants;
 import proguard.classfile.instruction.SimpleInstruction;
@@ -49,6 +50,7 @@ public class FlowTraceInjector
     private int returnOffset;
     private int runnableID = 1;
     private boolean inRunnable;
+    private int invoceInstruction = 0;
 
     public static final int LOG_INFO_ENTER = 0;
     public static final int LOG_INFO_EXIT = 1;
@@ -103,7 +105,6 @@ public class FlowTraceInjector
 
     public void checkRunnable(ProgramClass programClass)
     {
-        inRunnable = false;
         if (programClass.getInterfaceCount() < 1)
             return;
 
@@ -128,7 +129,11 @@ public class FlowTraceInjector
         injectedClassMap.put(programClass.getName(), internalClassName(FlowTraceWriter.class.getName()));
         injectedClassMap.put(programClass.getName(), internalClassName(FlowTraceWriter.MethodSignature.class.getName()));
 
-        checkRunnable(programClass);
+        inRunnable = false;
+        invoceInstruction = 0;
+
+        if (injectRunnable)
+            checkRunnable(programClass);
 
         ____ = new InstructionSequenceBuilder(programClass, programClassPool, libraryClassPool);
         programClass.methodsAccept(this);
@@ -163,7 +168,7 @@ public class FlowTraceInjector
         {
             int runnableMethod = 0;
             if (inRunnable && injectRunnable) {
-                if (method.getName(clazz).equals("run"))
+                if (invoceInstruction == InstructionConstants.OP_INVOKEVIRTUAL && method.getName(clazz).equals("run"))
                     runnableMethod = 2;
             }
             if (runnableMethod == 2) {
@@ -171,8 +176,8 @@ public class FlowTraceInjector
                         ____.
                                 ldc(LOG_INFO_ENTER).
                                 invokestatic(LOGGER_CLASS_NAME, "logFlow", "(I)V").
-                                aload_0().
-                                ldc(runnableMethod).
+                                //aload_0().
+                                        ldc(runnableMethod).
                                 aload_0().
                                 invokestatic(LOGGER_CLASS_NAME, "logRunnable", "(ILjava/lang/Object;)V").
                                 __());
@@ -189,10 +194,24 @@ public class FlowTraceInjector
         codeAttributeEditor.visitCodeAttribute(clazz, method, codeAttribute);
     }
 
-    @Override
-    //public void visitBranchInstruction(Clazz clazz, Method method, CodeAttribute codeAttribute, int offset, BranchInstruction instruction)
+    public void visitConstantInstruction(Clazz clazz, Method method, CodeAttribute codeAttribute, int offset, ConstantInstruction instruction)
+    {
+        if (instruction.opcode == InstructionConstants.OP_INVOKEVIRTUAL ||
+                instruction.opcode == InstructionConstants.OP_INVOKESPECIAL ||
+                instruction.opcode == InstructionConstants.OP_INVOKESTATIC ||
+                instruction.opcode == InstructionConstants.OP_INVOKEINTERFACE ||
+                instruction.opcode == InstructionConstants.OP_ARETURN ||
+                instruction.opcode == InstructionConstants.OP_INVOKEDYNAMIC)
+        {
+            invoceInstruction = instruction.opcode;
+        }
+        if (DEBUG)
+        {
+            System.out.println("visitConstantInstruction: " + clazz.getName() + " " + method.getName(clazz) + " " + instruction.getName());
+        }
+    }
+
     public void visitSimpleInstruction(Clazz clazz, Method method, CodeAttribute codeAttribute, int offset, SimpleInstruction instruction)
-    //public void visitConstantInstruction(Clazz clazz, Method method, CodeAttribute codeAttribute, int offset, ConstantInstruction instruction)
     {
         if (DEBUG)
         {
@@ -211,7 +230,7 @@ public class FlowTraceInjector
             {
                 int runnableMethod = 0;
                 if (inRunnable && injectRunnable) {
-                    if (method.getName(clazz).equals("<init>"))
+                    if (invoceInstruction == InstructionConstants.OP_INVOKESPECIAL && method.getName(clazz).equals("<init>"))
                         runnableMethod = 1;
                 }
                 if (runnableMethod == 1) {
@@ -219,8 +238,8 @@ public class FlowTraceInjector
                             ____.
                                     ldc(LOG_INFO_EXIT).
                                     invokestatic(LOGGER_CLASS_NAME, "logFlow", "(I)V").
-                                    aload_0().
-                                    ldc(runnableMethod).
+                                    //aload_0().
+                                            ldc(runnableMethod).
                                     aload_0().
                                     invokestatic(LOGGER_CLASS_NAME, "logRunnable", "(ILjava/lang/Object;)V").
                                     __());
@@ -234,7 +253,7 @@ public class FlowTraceInjector
             }
             if (DEBUG)
             {
-                System.out.println("visit: " + clazz.getName() + " " + method.getName(clazz) + " " + instruction.getName());
+                System.out.println("visitSimpleInstruction: " + clazz.getName() + " " + method.getName(clazz) + " " + instruction.getName());
             }
         }
     }

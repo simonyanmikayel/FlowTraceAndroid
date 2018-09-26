@@ -76,7 +76,7 @@ public class FlowTraceWriter {
         callLineNumber = stack[s1].getLineNumber();
 
         //System.out.println("   ----------------->" + (runnableMethod == 1 ? " <init> " : " run ") + o.hashCode());
-        FlowTraceLogTrace(LOG_DEBUG, thisClassName, thisMethodName, o.hashCode(), callLineNumber, "Runnable " + o.hashCode(), runnableMethod == 1 ? "<init>" : "run", flags);
+        FlowTraceLogTrace(LOG_DEBUG, thisClassName, thisMethodName, o.hashCode(), callLineNumber, "Runnable id " + o.hashCode(), runnableMethod == 1 ? "<init>" : "run", flags);
     }
 
 
@@ -104,7 +104,7 @@ public class FlowTraceWriter {
             exception.printStackTrace(printWriter);
             msg = msg + "\n" + writer.toString();
         }
-        //FlowTraceLogTrace(severity, thisClassName, thisMethodName, 0, callLineNumber, tag, msg, flags);
+        FlowTraceLogTrace(severity, thisClassName, thisMethodName, 0, callLineNumber, tag, msg, flags);
     }
 
     public static class MethodSignature
