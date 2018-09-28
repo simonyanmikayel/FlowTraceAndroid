@@ -36,7 +36,7 @@ public class FlowTraceInjector
         AttributeVisitor,
         InstructionVisitor
 {
-    static final boolean DEBUG = false;
+    static final boolean DEBUG = true;
     static final boolean injectRunnable = true;
     private final Configuration configuration;
     private CodeAttributeEditor codeAttributeEditor;
@@ -207,17 +207,26 @@ public class FlowTraceInjector
         }
         if (DEBUG)
         {
-            System.out.println("visitConstantInstruction: " + clazz.getName() + " " + method.getName(clazz) + " " + instruction.getName());
+            String thisClassName = clazz.getName();
+            String thisMethodName = method.getName(clazz);
+            ProgramClass programClass = (ProgramClass)clazz;
+            Constant constant = programClass.getConstant(instruction.constantIndex);
+            String callClassName = "";
+            String callMethodName = "";
+            int thisLineNumber = codeAttribute.getLineNumber(0);
+            int callLineNumber = codeAttribute.getLineNumber(offset);
+            if (constant != null && (constant instanceof RefConstant))
+            {
+                RefConstant refConstant = (RefConstant)programClass.getConstant(instruction.constantIndex);
+                callClassName = refConstant.getClassName(programClass);
+                callMethodName = refConstant.getName(programClass);
+            }
+            System.out.println("visitConstantInstruction: " + thisClassName + " " + thisMethodName + " " + instruction.getName() + " <> " + callClassName + " " + callMethodName + " " + callLineNumber);
         }
     }
 
     public void visitSimpleInstruction(Clazz clazz, Method method, CodeAttribute codeAttribute, int offset, SimpleInstruction instruction)
     {
-        if (DEBUG)
-        {
-//            System.out.println("visitConstantInstruction: " + clazz.getName() + " " + method.getName(clazz) + " " + constantInstruction.getName() + " " + constantInstruction.constantIndex);
-        }
-
         if (instruction.opcode == InstructionConstants.OP_IRETURN ||
                 instruction.opcode == InstructionConstants.OP_LRETURN ||
                 instruction.opcode == InstructionConstants.OP_FRETURN ||

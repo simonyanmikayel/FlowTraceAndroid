@@ -12,8 +12,12 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 public class MainActivity extends AppCompatActivity {
 
+    public static Logger LOGGER  = Logger.getLogger(MainActivity.class.getName());
     int dummy;
     // Used to load the 'native-lib' library on application startup.
     static {
@@ -35,6 +39,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 dummy++;
                 doDummy();
+                LOGGER.log(Level.INFO, "Executing TransactionContactUseCase");
                 Log.d("TEST", "test Flowtrce");
                 Log.d("TEST", stringFromJNI());
                 System.loadLibrary("flowtrace");

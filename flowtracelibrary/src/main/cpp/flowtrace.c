@@ -238,6 +238,8 @@ static int send_trace(UDP_LOG_Severity severity, int flags, const char* fn_name,
     va_list arg_copy;
     char trace[ MAX_LOG_LEN + EXTRA_BUF];
 
+    TRACE(" -> initialized: %d fn_name: %p\n", initialized, fn_name);
+
     if (cb_fn_name < 0)
         cb_fn_name = strlen(fn_name);
 
@@ -288,6 +290,7 @@ static int send_trace(UDP_LOG_Severity severity, int flags, const char* fn_name,
     }
 
     va_end(arg_copy);
+    TRACE(" <- \n");
     return cb;
 }
 
@@ -308,6 +311,10 @@ static int Severity2Priority(int severity)
 
 void FlowTraceLogWriteV(int severity, const char *fn_name, int call_line, const char *fmt, va_list args)
 {
+    // Do not use TRACE here
+#ifdef WITH_TRACE
+    fprintf(stderr, "FLOWTRACE -> [FlowTraceLogWriteV] initialized: %d fn_name: %p\n", initialized, fn_name);
+#endif
     va_list arg_copy;
     va_copy(arg_copy, args);
 
@@ -320,6 +327,9 @@ void FlowTraceLogWriteV(int severity, const char *fn_name, int call_line, const 
     __android_log_write(Severity2Priority(severity), TAG, trace);
 
     va_end(arg_copy);
+#ifdef WITH_TRACE
+    fprintf(stderr, "FLOWTRACE <- [FlowTraceLogWriteV]\n");
+#endif
 }
 
 void FlowTraceLogWrite(int severity, const char *fn_name, int call_line, const char *fmt, ...)
@@ -425,14 +435,25 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogFlow(
     (*env)->ReleaseStringUTFChars(env, callMethodName, szCallMethodName);
 }
 
+int FlowTraceInitialize()
+{
+    int ret = 1;
+    if (initialized)
+    {
+        TRACE_INFO("already initialized")
+        return 1;
+    }
+    ret = ret && init_config();
+    ret = ret && init_sender(ip, port);
+    init_dalvik_hook();
+    initialized = (ret != 0);
+    return ret;
+}
 //extern "C"
 JNIEXPORT jint JNICALL
 Java_proguard_inject_FlowTraceWriter_initTraces(JNIEnv *env, jclass type) {
     int ret = 1;
     ret = ret && init_app();
-    ret = ret && init_config();
-    ret = ret && init_sender(ip, port);
-    init_dalvik_hook();
-    initialized = (ret != 0);
+    ret = ret && FlowTraceInitialize();
     return ret;
 }
