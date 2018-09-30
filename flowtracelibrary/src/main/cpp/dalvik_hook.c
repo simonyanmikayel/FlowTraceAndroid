@@ -126,6 +126,22 @@ int dalvik_hook_setup(struct dalvik_hook_t *h, char *clname, char *meth, char *s
 	return 0 != res;
 }
 
+int resolveStaticMetod(struct jmethod_t *h, char *szCls, char *szMeth, char *szSig, JNIEnv *env)
+{
+	h->mid = 0;
+	if (h->cls = (*env)->FindClass(env, szCls))
+		h->mid = (*env)->GetStaticMethodID(env, h->cls, szMeth, szSig);
+    return h->mid != 0;
+}
+
+int resolveDynamicMetod(struct jmethod_t *h, char *szCls, char *szMeth, char *szSig, JNIEnv *env)
+{
+	h->mid = 0;
+	if (h->cls = (*env)->FindClass(env, szCls))
+		h->mid = (*env)->GetMethodID(env, h->cls, szMeth, szSig);
+    return h->mid != 0;
+}
+
 int dalvik_resolve(struct dalvik_hook_t *h, char *clname, char *meth, char *sig, JNIEnv *env)
 {
 	do

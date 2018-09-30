@@ -11,6 +11,12 @@
 #include <jni.h>
 #include "dexstuff.h"
 
+struct jmethod_t
+{
+	jclass cls;
+	jmethodID mid;
+};
+
 struct dalvik_hook_t
 {
 	char clname[256];
@@ -47,6 +53,8 @@ struct dalvik_hook_t
 	int debug_me;  // print debug while operating on this method
 };
 
+int resolveStaticMetod(struct jmethod_t *h, char *szCls, char *szMeth, char *szSig, JNIEnv *env);
+int resolveDynamicMetod(struct jmethod_t *h, char *szCls, char *szMeth, char *szSig, JNIEnv *env);
 int dalvik_resolve(struct dalvik_hook_t *h, char *cls, char *meth, char *sig, JNIEnv *env);
 int dalvik_prepare(struct dalvik_hook_t *h, JNIEnv *env);
 void dalvik_postcall(struct dalvik_hook_t *h);

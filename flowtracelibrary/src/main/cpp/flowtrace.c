@@ -457,3 +457,10 @@ Java_proguard_inject_FlowTraceWriter_initTraces(JNIEnv *env, jclass type) {
     ret = ret && FlowTraceInitialize();
     return ret;
 }
+
+JNIEXPORT jint JNICALL
+Java_com_example_testapplication_ExampleInstrumentedTest_testJNI(JNIEnv *env, jclass type) {
+    int ret = 1;
+    init_dalvik_hook();
+    return ret;
+}

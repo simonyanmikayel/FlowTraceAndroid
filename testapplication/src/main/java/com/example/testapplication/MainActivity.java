@@ -89,6 +89,7 @@ public class MainActivity extends AppCompatActivity {
 
     void doDummy_2()
     {
+        
         //test empty method
 //        dummy++;
     }
