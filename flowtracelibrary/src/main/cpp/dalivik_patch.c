@@ -163,7 +163,7 @@ static void print_log(JNIEnv *env, int priority, jobject tag, jobject msg, jobje
     struct jmethod_t j_getStackTraceString;
     if (tr && (resolveStaticMetod(&j_getStackTraceString, "android/util/Log",  "getStackTraceString",  "(Ljava/lang/Throwable;)Ljava/lang/String;", env)))
     {
-        args[0].i = tr;
+        args[0].l = tr;
         void *res = (*env)->CallStaticObjectMethodA(env, j_getStackTraceString.cls , j_getStackTraceString.mid, args);
         if (res) {
             args[0].i = 0;

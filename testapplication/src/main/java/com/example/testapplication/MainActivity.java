@@ -37,7 +37,9 @@ public class MainActivity extends AppCompatActivity {
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+
                 dummy++;
+                doDummy_2();
                 doDummy();
                 LOGGER.log(Level.INFO, "Executing TransactionContactUseCase");
                 Log.d("TEST", "test Flowtrce");
@@ -45,6 +47,7 @@ public class MainActivity extends AppCompatActivity {
                 System.loadLibrary("flowtrace");
                 Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
                         .setAction("Action", null).show();
+
             }
         });
 
@@ -89,9 +92,8 @@ public class MainActivity extends AppCompatActivity {
 
     void doDummy_2()
     {
-        
         //test empty method
-//        dummy++;
+        dummy++;
     }
     /**
      * A native method that is implemented by the 'native-lib' native library,

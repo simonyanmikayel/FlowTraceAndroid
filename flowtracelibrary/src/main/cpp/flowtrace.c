@@ -390,9 +390,10 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogTrace(
 JNIEXPORT void JNICALL
 Java_proguard_inject_FlowTraceWriter_FlowTraceLogFlow(
         JNIEnv *env, jclass type,
+        jint log_type, jint log_flags,
         jstring  thisClassName, jstring thisMethodName,
         jstring callClassName, jstring callMethodName,
-        jint log_type, jint thisID, jint callID,
+        jint thisID, jint callID,
         jint thisLineNumber, jint callLineNumber
 )
 {
@@ -418,16 +419,17 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogFlow(
     //! Very confusing parameters names for FlowTraceSendLog.
     //! This is due to trace for cpp code has oposite flow.
     FlowTraceSendLog("", 0, 0,
-            fn_name, //szCallClassName:szCallMethodName
-            cb_fn_name,
-            thisLineNumber,//fn_line
-            cb_trace,
-            trace,//szThisClassName:szThisMethodName
-            callLineNumber,//call_line
-            thisID, //this_fn - callee
-            callID, //call_site - caller
-            (short)log_type,
-            LOG_FLAG_JAVA);
+                     fn_name, //szCallClassName:szCallMethodName
+                     cb_fn_name,
+                     thisLineNumber,//fn_line
+                     cb_trace,
+                     trace,//szThisClassName:szThisMethodName
+                     callLineNumber,//call_line
+                     thisID, //this_fn - callee
+                     callID, //call_site - caller
+                     (short)log_type,
+                     log_flags|LOG_FLAG_JAVA
+    );
 
     (*env)->ReleaseStringUTFChars(env, thisClassName, szThisClassName);
     (*env)->ReleaseStringUTFChars(env, thisMethodName, szThisMethodName);
