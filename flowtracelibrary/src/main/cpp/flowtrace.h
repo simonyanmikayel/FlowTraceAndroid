@@ -5,12 +5,14 @@
 #ifndef FLOWTRACEANDROID_FLOWTRACE_H
 #define FLOWTRACEANDROID_FLOWTRACE_H
 
+#define MAX_NET_BUF 1400 // this size of UDP guaranteed to be send as single package
+//#define MAX_NET_BUF 16*1024  //maximum TCP window size in Microsoft Windows 2000 is 17,520 bytes
 #define MAX_APP_PATH_LEN 128
 #define MAX_APP_NAME_LEN 128
 #define MAX_MODULE_NAME_LEN 128
+#define MAX_FUNC_NAME_LEN 532
 #define MAX_LOG_LEN 1200
-#define MAX_FUNC_NAME_LEN 1200
-#define CASH_LEN 1400
+
 #define EXTRA_BUF 20 // extra bytes for colors (2*8) new lines(2) and terminating null
 #define LOG_FLAG_NEW_LINE 1
 #define LOG_FLAG_JAVA 2
@@ -83,7 +85,7 @@ typedef struct
 typedef struct
 {
     NET_PACK_INFO info;
-    char data[CASH_LEN + 16];
+    char data[MAX_NET_BUF + 16];
 } NET_PACK;
 
 #pragma pack(pop)

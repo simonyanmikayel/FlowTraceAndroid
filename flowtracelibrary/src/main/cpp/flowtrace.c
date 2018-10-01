@@ -171,8 +171,7 @@ void FlowTraceSendLog(const char* module_name, int cb_module_name, unsigned int 
 {
     struct timespec time_stamp;
     int len;
-    char buf[ sizeof(NET_PACK_INFO) + sizeof(LOG_REC) + MAX_APP_NAME_LEN + MAX_MODULE_NAME_LEN + MAX_FUNC_NAME_LEN + MAX_LOG_LEN + EXTRA_BUF + 5]; //extra length for alignment
-    NET_PACK* pack = 0;
+    NET_PACK pack;
     LOG_REC* rec;
 
     if (!initialized)
@@ -183,13 +182,8 @@ void FlowTraceSendLog(const char* module_name, int cb_module_name, unsigned int 
     if (cb_module_name > MAX_MODULE_NAME_LEN)
         cb_module_name = MAX_MODULE_NAME_LEN;
 
-    if (cb_trace > MAX_LOG_LEN) // return value of size or more means that the output was truncated.
-    {
-        cb_trace = MAX_LOG_LEN;
-    }
-
-    pack = (NET_PACK*)buf;
-    rec  = (LOG_REC*)(pack->data);
+    //pack = (NET_PACK*)buf;
+    rec  = (LOG_REC*)(pack.data);
 
     rec->nn = ++NN;
     rec->log_type = log_type;
@@ -215,8 +209,11 @@ void FlowTraceSendLog(const char* module_name, int cb_module_name, unsigned int 
         memcpy(rec->data + cb_app_name, module_name, cb_module_name);
     if (cb_fn_name)
         memcpy(rec->data + cb_app_name + cb_module_name, fn_name, cb_fn_name);
-    if (cb_trace)
+    if (cb_trace) {
+        if ( cb_trace > (MAX_NET_BUF - cb_app_name - cb_module_name - cb_fn_name - sizeof(LOG_REC)))
+            cb_trace -= (MAX_NET_BUF - cb_app_name - cb_module_name - cb_fn_name - sizeof(LOG_REC));
         memcpy(rec->data + cb_app_name + cb_module_name + cb_fn_name, trace, cb_trace);
+    }
 
     rec->data[cb_app_name + cb_module_name + cb_fn_name + cb_trace] = 0;
     len = sizeof(LOG_REC) + cb_app_name + cb_module_name + cb_fn_name + cb_trace + 1;
@@ -227,8 +224,8 @@ void FlowTraceSendLog(const char* module_name, int cb_module_name, unsigned int 
 
     rec->len = len;
 
-    pack->info.data_len = len;
-    net_send_pack(pack);
+    pack.info.data_len = len;
+    net_send_pack(&pack);
 }
 
 static int send_trace(UDP_LOG_Severity severity, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, va_list args)

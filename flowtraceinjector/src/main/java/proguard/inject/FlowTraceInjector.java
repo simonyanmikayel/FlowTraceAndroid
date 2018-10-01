@@ -40,6 +40,7 @@ public class FlowTraceInjector
         InstructionVisitor
 {
     private static final boolean DEBUG = false;
+    private static final boolean verbose = false; //TODO set as config value
     private static final boolean injectRunnable = true;
 
     private final Configuration configuration;
@@ -259,8 +260,18 @@ public class FlowTraceInjector
                 int callClassNameRef = ____.getConstantPoolEditor().addStringConstant(callerClassName, clazz, null);
                 int callMetodNameRef = ____.getConstantPoolEditor().addStringConstant(callerMethodName, clazz, null);
 
-                codeAttributeEditor.insertBeforeInstruction(offset, logInstruction(0, LOG_INFO_ENTER, LOG_FLAG_INNER_LOG, thisClassNameRef, thisMetodNameRef, callClassNameRef, callMetodNameRef, 0, calledLineNumber));
-                codeAttributeEditor.insertAfterInstruction(offset, logInstruction(0, LOG_INFO_EXIT, LOG_FLAG_INNER_LOG, thisClassNameRef, thisMetodNameRef, callClassNameRef, callMetodNameRef, 0, calledLineNumber));
+                boolean skip = (!verbose) &&
+                        (calledClassName.startsWith("android/") || calledClassName.startsWith("java/"));
+
+                if (!skip)
+                {
+                    codeAttributeEditor.insertBeforeInstruction(offset, logInstruction(0, LOG_INFO_ENTER, LOG_FLAG_INNER_LOG, thisClassNameRef, thisMetodNameRef, callClassNameRef, callMetodNameRef, 0, calledLineNumber));
+                    codeAttributeEditor.insertAfterInstruction(offset, logInstruction(0, LOG_INFO_EXIT, LOG_FLAG_INNER_LOG, thisClassNameRef, thisMetodNameRef, callClassNameRef, callMetodNameRef, 0, calledLineNumber));
+                }
+                else
+                {
+                    //System.out.println("Skipping: " + calledClassName);
+                }
             }
             catch (Exception e)
             {
