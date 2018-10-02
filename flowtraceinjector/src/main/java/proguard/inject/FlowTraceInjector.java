@@ -252,7 +252,7 @@ public class FlowTraceInjector
                 RefConstant refConstant = (RefConstant)programClass.getConstant(constantInstruction.constantIndex);
                 String calledClassName = refConstant.getClassName(programClass);
                 String calledMethodName = refConstant.getName(programClass);
-                int callerLineNumber = codeAttribute.getLineNumber(0);
+                //int callerLineNumber = codeAttribute.getLineNumber(0);
                 int calledLineNumber = codeAttribute.getLineNumber(offset);
 
                 int thisClassNameRef = ____.getConstantPoolEditor().addStringConstant(calledClassName, clazz, null);
@@ -260,17 +260,17 @@ public class FlowTraceInjector
                 int callClassNameRef = ____.getConstantPoolEditor().addStringConstant(callerClassName, clazz, null);
                 int callMetodNameRef = ____.getConstantPoolEditor().addStringConstant(callerMethodName, clazz, null);
 
-                boolean skip = (!verbose) &&
-                        (calledClassName.startsWith("android/") || calledClassName.startsWith("java/"));
-
-                if (!skip)
+                if (verbose || !(calledClassName.startsWith("android/") || calledClassName.startsWith("java/")))
                 {
                     codeAttributeEditor.insertBeforeInstruction(offset, logInstruction(0, LOG_INFO_ENTER, LOG_FLAG_INNER_LOG, thisClassNameRef, thisMetodNameRef, callClassNameRef, callMetodNameRef, 0, calledLineNumber));
                     codeAttributeEditor.insertAfterInstruction(offset, logInstruction(0, LOG_INFO_EXIT, LOG_FLAG_INNER_LOG, thisClassNameRef, thisMetodNameRef, callClassNameRef, callMetodNameRef, 0, calledLineNumber));
                 }
                 else
                 {
-                    //System.out.println("Skipping: " + calledClassName);
+                    if (DEBUG)
+                    {
+                        System.out.println("Skipping: " + calledClassName);
+                    }
                 }
             }
             catch (Exception e)
@@ -284,33 +284,23 @@ public class FlowTraceInjector
     }
 
     private Instruction[] logInstruction(int runnableMethod, int log_type, int log_flags, int thisClassNameRef, int thisMetodNameRef, int callClassNameRef, int callMetodNameRef, int thisLineNumber, int callLineNumber) {
+        ____
+                .ldc(log_type)
+                .ldc(log_flags)
+                .ldc_(thisClassNameRef)
+                .ldc_(thisMetodNameRef)
+                .ldc_(callClassNameRef)
+                .ldc_(callMetodNameRef)
+                .ldc(thisLineNumber)
+                .ldc(callLineNumber)
+                .invokestatic(LOGGER_CLASS_NAME, "logFlow", "(IILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;II)V");
 
-        try {
-            ____
-                    .ldc(log_type)
-                    .ldc(log_flags)
-                    .ldc_(thisClassNameRef)
-                    .ldc_(thisMetodNameRef)
-                    .ldc_(callClassNameRef)
-                    .ldc_(callMetodNameRef)
-                    .ldc(thisLineNumber)
-                    .ldc(callLineNumber)
-                    .invokestatic(LOGGER_CLASS_NAME, "logFlow", "(IILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;II)V");
-
-            if (runnableMethod != 0) {
-                ____.
-                        ldc(runnableMethod).
-                        aload_0().
-                        invokestatic(LOGGER_CLASS_NAME, "logRunnable", "(ILjava/lang/Object;)V");
-            }
+        if (runnableMethod != 0) {
+            ____.
+                    ldc(runnableMethod).
+                    aload_0().
+                    invokestatic(LOGGER_CLASS_NAME, "logRunnable", "(ILjava/lang/Object;)V");
         }
-        catch (Exception e)
-        {
-            System.out.println("Exception on injection");
-            System.out.println("Exception: " + e.toString());
-            throw(e);
-        }
-
         return ____.instructions();
     }
 

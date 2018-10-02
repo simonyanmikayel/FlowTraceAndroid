@@ -26,6 +26,18 @@ public class FlowTraceWriter {
     public static final int LOG_FLAG_RUNNABLE_RUN = 16;
     public static final int LOG_FLAG_INNER_LOG= 32;
 
+    private static int s_log_type;
+    private static int s_log_flags;
+    private static String s_thisClassName;
+    private static String s_thisMethodName;
+    private static String s_callClassName;
+    private static String s_callMethodName;
+    private static int s_thisLineNumber;
+    private static int s_callLineNumber;
+    private static int s_thisID;
+    private static int s_callID;
+    private static long s_tid;
+    private static boolean s_flowSaved;
 
     static {
         if (!DEBUG) {
@@ -35,7 +47,7 @@ public class FlowTraceWriter {
         }
     }
 
-    static public void logFlow(int log_type, int log_flags, String thisClassName, String thisMethodName, String callClassName, String callMethodName, int thisLineNumber, int callLineNumber) {
+    static public synchronized void logFlow(int log_type, int log_flags, String thisClassName, String thisMethodName, String callClassName, String callMethodName, int thisLineNumber, int callLineNumber) {
 
         if (DEBUG)
             System.out.println( (log_type == 0) ? " -> " : " <- " + thisClassName + " " + thisMethodName + " "  + thisLineNumber + " <> " + callClassName + " " + callMethodName + " "  + callLineNumber);
@@ -43,13 +55,40 @@ public class FlowTraceWriter {
         if (!initialized)
             return;
 
-        int thisID = thisClassName.hashCode() +  31 * thisMethodName.hashCode();;
-        int callID = callClassName.hashCode() +  31 * callMethodName.hashCode();;
+        long tid = Thread.currentThread().getId();
+        int thisID = thisClassName.hashCode() +  31 * thisMethodName.hashCode();
+        int callID = callClassName.hashCode() +  31 * callMethodName.hashCode();
+
+        if (s_flowSaved)
+        {
+
+        }
+
+        //save inner ENTER and
+        if ( (((log_flags & LOG_FLAG_INNER_LOG )== LOG_FLAG_INNER_LOG) && (log_type == LOG_INFO_ENTER)) ||
+                (((log_flags & LOG_FLAG_INNER_LOG )!= LOG_FLAG_INNER_LOG) && (log_type == LOG_INFO_EXIT)) )
+        {
+            s_log_type = log_type;
+            s_log_flags = log_flags;
+            s_thisClassName = thisClassName;
+            s_thisMethodName = thisMethodName;
+            s_callClassName = callClassName;
+            s_callMethodName = callMethodName;
+            s_thisLineNumber = thisLineNumber;
+            s_callLineNumber = callLineNumber;
+            s_thisID = thisID;
+            s_callID = callID;
+            s_tid = tid;
+            s_flowSaved = false;
+        }
+        else {
+            s_flowSaved = false;
+        }
 
         FlowTraceLogFlow(log_type, log_flags, thisClassName, thisMethodName, callClassName, callMethodName, thisID, callID, thisLineNumber, callLineNumber);
     }
 
-    static public void logRunnable(int runnableMethod, Object o)
+    static public synchronized void logRunnable(int runnableMethod, Object o)
     {
         if (DEBUG)
             System.out.println("   ----------------->" + (runnableMethod == 1 ? " <init> " : " run ") + o.hashCode());
