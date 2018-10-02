@@ -40,13 +40,13 @@ public class MainActivity extends AppCompatActivity {
 
                 dummy++;
                 doDummy_2();
-                doDummy();
-                LOGGER.log(Level.INFO, "Executing TransactionContactUseCase");
-                Log.d("TEST", "test Flowtrce");
-                Log.d("TEST", stringFromJNI());
-                System.loadLibrary("flowtrace");
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+//                doDummy();
+//                LOGGER.log(Level.INFO, "Executing TransactionContactUseCase");
+//                Log.d("TEST", "test Flowtrce");
+//                Log.d("TEST", stringFromJNI());
+//                System.loadLibrary("flowtrace");
+//                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+//                        .setAction("Action", null).show();
 
             }
         });

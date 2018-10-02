@@ -59,33 +59,59 @@ public class FlowTraceWriter {
         int thisID = thisClassName.hashCode() +  31 * thisMethodName.hashCode();
         int callID = callClassName.hashCode() +  31 * callMethodName.hashCode();
 
+        boolean isEnter = (log_type == LOG_INFO_ENTER);
+        boolean isInnerLog = ((log_flags & LOG_FLAG_INNER_LOG )== LOG_FLAG_INNER_LOG);
+        boolean sendSaved = false;
+        boolean sendCurrent = true;
+
         if (s_flowSaved)
         {
-
+            if (s_tid == tid && s_thisID == thisID)
+            {
+                boolean s_isInnerLog = ((s_log_flags & LOG_FLAG_INNER_LOG )== LOG_FLAG_INNER_LOG);
+                boolean s_isEnter = (s_log_type == LOG_INFO_ENTER);
+                if ((!isInnerLog && isEnter) && (s_isInnerLog && s_isEnter))
+                {
+                    s_thisLineNumber = thisLineNumber;
+                    sendSaved = true;
+                    sendCurrent = false;
+                }
+                if ((isInnerLog && !isEnter) && (!s_isInnerLog && !s_isEnter))
+                {
+                    sendCurrent = false;
+                }
+            } else {
+                sendSaved = true;
+            }
+            s_flowSaved = false;
         }
 
+        if (sendSaved)
+            FlowTraceLogFlow(s_log_type, s_log_flags, s_thisClassName, s_thisMethodName, s_callClassName, s_callMethodName, s_thisID, s_callID, s_thisLineNumber, s_callLineNumber);
+
+        if (sendCurrent)
+            FlowTraceLogFlow(log_type, log_flags, thisClassName, thisMethodName, callClassName, callMethodName, thisID, callID, thisLineNumber, callLineNumber);
+
         //save inner ENTER and
-        if ( (((log_flags & LOG_FLAG_INNER_LOG )== LOG_FLAG_INNER_LOG) && (log_type == LOG_INFO_ENTER)) ||
-                (((log_flags & LOG_FLAG_INNER_LOG )!= LOG_FLAG_INNER_LOG) && (log_type == LOG_INFO_EXIT)) )
+        if ( (isInnerLog && isEnter) || (!isInnerLog && !isEnter) )
         {
-            s_log_type = log_type;
-            s_log_flags = log_flags;
-            s_thisClassName = thisClassName;
+            s_log_type       = log_type;
+            s_log_flags      = log_flags;
+            s_thisClassName  = thisClassName;
             s_thisMethodName = thisMethodName;
-            s_callClassName = callClassName;
+            s_callClassName  = callClassName;
             s_callMethodName = callMethodName;
             s_thisLineNumber = thisLineNumber;
             s_callLineNumber = callLineNumber;
-            s_thisID = thisID;
-            s_callID = callID;
-            s_tid = tid;
-            s_flowSaved = false;
+            s_thisID         = thisID;
+            s_callID         = callID;
+            s_tid            = tid;
+
+            s_flowSaved      = true;
         }
         else {
             s_flowSaved = false;
         }
-
-        FlowTraceLogFlow(log_type, log_flags, thisClassName, thisMethodName, callClassName, callMethodName, thisID, callID, thisLineNumber, callLineNumber);
     }
 
     static public synchronized void logRunnable(int runnableMethod, Object o)
