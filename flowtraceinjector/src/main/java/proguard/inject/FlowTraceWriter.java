@@ -38,6 +38,8 @@ public class FlowTraceWriter {
     private static int s_callID;
     private static long s_tid;
     private static boolean s_flowSaved;
+    private static int NN;
+    private static int s_NN;
 
     static {
         if (!DEBUG) {
@@ -49,6 +51,7 @@ public class FlowTraceWriter {
 
     static public synchronized void logFlow(int log_type, int log_flags, String thisClassName, String thisMethodName, String callClassName, String callMethodName, int thisLineNumber, int callLineNumber) {
 
+        NN++;
         if (DEBUG)
             System.out.println( (log_type == 0) ? " -> " : " <- " + thisClassName + " " + thisMethodName + " "  + thisLineNumber + " <> " + callClassName + " " + callMethodName + " "  + callLineNumber);
 
@@ -66,24 +69,19 @@ public class FlowTraceWriter {
 
         if (s_flowSaved)
         {
-            if (s_tid == tid && s_thisID == thisID)
+            if (s_tid == tid && s_thisID == thisID && (NN == s_NN + 1))
             {
                 boolean s_isInnerLog = ((s_log_flags & LOG_FLAG_INNER_LOG )== LOG_FLAG_INNER_LOG);
                 boolean s_isEnter = (s_log_type == LOG_INFO_ENTER);
-                if ((!isInnerLog && isEnter) && (s_isInnerLog && s_isEnter))
+                if ( ((!isInnerLog && isEnter) && (s_isInnerLog && s_isEnter)) ||
+                        ((isInnerLog && !isEnter) && (!s_isInnerLog && !s_isEnter)) )
                 {
                     s_thisLineNumber = thisLineNumber;
                     sendSaved = true;
                     sendCurrent = false;
+                    s_flowSaved = false;
                 }
-                if ((isInnerLog && !isEnter) && (!s_isInnerLog && !s_isEnter))
-                {
-                    sendCurrent = false;
-                }
-            } else {
-                sendSaved = true;
             }
-            s_flowSaved = false;
         }
 
         if (sendSaved)
@@ -92,25 +90,25 @@ public class FlowTraceWriter {
         if (sendCurrent)
             FlowTraceLogFlow(log_type, log_flags, thisClassName, thisMethodName, callClassName, callMethodName, thisID, callID, thisLineNumber, callLineNumber);
 
-        //save inner ENTER and
-        if ( (isInnerLog && isEnter) || (!isInnerLog && !isEnter) )
+        if (!s_flowSaved)
         {
-            s_log_type       = log_type;
-            s_log_flags      = log_flags;
-            s_thisClassName  = thisClassName;
-            s_thisMethodName = thisMethodName;
-            s_callClassName  = callClassName;
-            s_callMethodName = callMethodName;
-            s_thisLineNumber = thisLineNumber;
-            s_callLineNumber = callLineNumber;
-            s_thisID         = thisID;
-            s_callID         = callID;
-            s_tid            = tid;
+            if ( (isInnerLog && isEnter) || (!isInnerLog && !isEnter) )
+            {
+                s_log_type       = log_type;
+                s_log_flags      = log_flags;
+                s_thisClassName  = thisClassName;
+                s_thisMethodName = thisMethodName;
+                s_callClassName  = callClassName;
+                s_callMethodName = callMethodName;
+                s_thisLineNumber = thisLineNumber;
+                s_callLineNumber = callLineNumber;
+                s_thisID         = thisID;
+                s_callID         = callID;
+                s_tid            = tid;
+                s_NN             = NN;
 
-            s_flowSaved      = true;
-        }
-        else {
-            s_flowSaved = false;
+                s_flowSaved      = true;
+            }
         }
     }
 
