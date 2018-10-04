@@ -27,7 +27,7 @@ import proguard.classfile.attribute.annotation.*;
 import proguard.classfile.attribute.annotation.target.*;
 import java.io.IOException;
 import static proguard.classfile.util.ClassUtil.internalClassName;
-import static proguard.inject.FlowTraceWriter.LOG_FLAG_INNER_LOG;
+import static proguard.inject.FlowTraceWriter.LOG_FLAG_OUTER_LOG;
 import static proguard.inject.FlowTraceWriter.LOG_INFO_ENTER;
 import static proguard.inject.FlowTraceWriter.LOG_INFO_EXIT;
 
@@ -262,8 +262,8 @@ public class FlowTraceInjector
 
                 if (verbose || !(calledClassName.startsWith("android/") || calledClassName.startsWith("java/")))
                 {
-                    codeAttributeEditor.insertBeforeInstruction(offset, logInstruction(0, LOG_INFO_ENTER, LOG_FLAG_INNER_LOG, thisClassNameRef, thisMetodNameRef, callClassNameRef, callMetodNameRef, 0, calledLineNumber));
-                    codeAttributeEditor.insertAfterInstruction(offset, logInstruction(0, LOG_INFO_EXIT, LOG_FLAG_INNER_LOG, thisClassNameRef, thisMetodNameRef, callClassNameRef, callMetodNameRef, 0, calledLineNumber));
+                    codeAttributeEditor.insertBeforeInstruction(offset, logInstruction(0, LOG_INFO_ENTER, LOG_FLAG_OUTER_LOG, thisClassNameRef, thisMetodNameRef, callClassNameRef, callMetodNameRef, 0, calledLineNumber));
+                    codeAttributeEditor.insertAfterInstruction(offset, logInstruction(0, LOG_INFO_EXIT, LOG_FLAG_OUTER_LOG, thisClassNameRef, thisMetodNameRef, callClassNameRef, callMetodNameRef, 0, calledLineNumber));
                 }
                 else
                 {

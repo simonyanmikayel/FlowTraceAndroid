@@ -1,7 +1,5 @@
 package proguard.inject;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.Arrays;
 
 public class FlowTraceWriter {
@@ -24,22 +22,13 @@ public class FlowTraceWriter {
     public static final int LOG_FLAG_EXCEPTION = 4;
     public static final int LOG_FLAG_RUNNABLE_INIT = 8;
     public static final int LOG_FLAG_RUNNABLE_RUN = 16;
-    public static final int LOG_FLAG_INNER_LOG= 32;
+    public static final int LOG_FLAG_OUTER_LOG = 32;
 
     private static int s_log_type;
     private static int s_log_flags;
-    private static String s_thisClassName;
-    private static String s_thisMethodName;
-    private static String s_callClassName;
-    private static String s_callMethodName;
-    private static int s_thisLineNumber;
-    private static int s_callLineNumber;
     private static int s_thisID;
-    private static int s_callID;
     private static long s_tid;
     private static boolean s_flowSaved;
-    private static int NN;
-    private static int s_NN;
 
     static {
         if (!DEBUG) {
@@ -51,7 +40,6 @@ public class FlowTraceWriter {
 
     static public synchronized void logFlow(int log_type, int log_flags, String thisClassName, String thisMethodName, String callClassName, String callMethodName, int thisLineNumber, int callLineNumber) {
 
-        NN++;
         if (DEBUG)
             System.out.println( (log_type == 0) ? " -> " : " <- " + thisClassName + " " + thisMethodName + " "  + thisLineNumber + " <> " + callClassName + " " + callMethodName + " "  + callLineNumber);
 
@@ -63,49 +51,36 @@ public class FlowTraceWriter {
         int callID = callClassName.hashCode() +  31 * callMethodName.hashCode();
 
         boolean isEnter = (log_type == LOG_INFO_ENTER);
-        boolean isInnerLog = ((log_flags & LOG_FLAG_INNER_LOG )== LOG_FLAG_INNER_LOG);
-        boolean sendSaved = false;
-        boolean sendCurrent = true;
+        boolean isInnerLog = ((log_flags & LOG_FLAG_OUTER_LOG)== LOG_FLAG_OUTER_LOG);
+        boolean sendLog = true;
 
-        if (s_flowSaved)
+        if (s_flowSaved && s_tid == tid)
         {
-            if (s_tid == tid && s_thisID == thisID && (NN == s_NN + 1))
+            if (s_thisID == thisID)
             {
-                boolean s_isInnerLog = ((s_log_flags & LOG_FLAG_INNER_LOG )== LOG_FLAG_INNER_LOG);
+                boolean s_isInnerLog = ((s_log_flags & LOG_FLAG_OUTER_LOG)== LOG_FLAG_OUTER_LOG);
                 boolean s_isEnter = (s_log_type == LOG_INFO_ENTER);
                 if ( ((!isInnerLog && isEnter) && (s_isInnerLog && s_isEnter)) ||
                         ((isInnerLog && !isEnter) && (!s_isInnerLog && !s_isEnter)) )
                 {
-                    s_thisLineNumber = thisLineNumber;
-                    sendSaved = true;
-                    sendCurrent = false;
-                    s_flowSaved = false;
+                    sendLog = false;
                 }
             }
+            s_flowSaved = false;
+            s_tid = 0;
         }
 
-        if (sendSaved)
-            FlowTraceLogFlow(s_log_type, s_log_flags, s_thisClassName, s_thisMethodName, s_callClassName, s_callMethodName, s_thisID, s_callID, s_thisLineNumber, s_callLineNumber);
-
-        if (sendCurrent)
+        if (sendLog)
             FlowTraceLogFlow(log_type, log_flags, thisClassName, thisMethodName, callClassName, callMethodName, thisID, callID, thisLineNumber, callLineNumber);
 
-        if (!s_flowSaved)
+        if (s_tid == 0)
         {
             if ( (isInnerLog && isEnter) || (!isInnerLog && !isEnter) )
             {
                 s_log_type       = log_type;
                 s_log_flags      = log_flags;
-                s_thisClassName  = thisClassName;
-                s_thisMethodName = thisMethodName;
-                s_callClassName  = callClassName;
-                s_callMethodName = callMethodName;
-                s_thisLineNumber = thisLineNumber;
-                s_callLineNumber = callLineNumber;
                 s_thisID         = thisID;
-                s_callID         = callID;
                 s_tid            = tid;
-                s_NN             = NN;
 
                 s_flowSaved      = true;
             }
