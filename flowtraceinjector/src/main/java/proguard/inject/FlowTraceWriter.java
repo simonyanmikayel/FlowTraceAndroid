@@ -51,17 +51,17 @@ public class FlowTraceWriter {
         int callID = callClassName.hashCode() +  31 * callMethodName.hashCode();
 
         boolean isEnter = (log_type == LOG_INFO_ENTER);
-        boolean isInnerLog = ((log_flags & LOG_FLAG_OUTER_LOG)== LOG_FLAG_OUTER_LOG);
+        boolean isOuterLog = ((log_flags & LOG_FLAG_OUTER_LOG)== LOG_FLAG_OUTER_LOG);
         boolean sendLog = true;
 
         if (s_flowSaved && s_tid == tid)
         {
             if (s_thisID == thisID)
             {
-                boolean s_isInnerLog = ((s_log_flags & LOG_FLAG_OUTER_LOG)== LOG_FLAG_OUTER_LOG);
+                boolean s_isOuterLog = ((s_log_flags & LOG_FLAG_OUTER_LOG)== LOG_FLAG_OUTER_LOG);
                 boolean s_isEnter = (s_log_type == LOG_INFO_ENTER);
-                if ( ((!isInnerLog && isEnter) && (s_isInnerLog && s_isEnter)) ||
-                        ((isInnerLog && !isEnter) && (!s_isInnerLog && !s_isEnter)) )
+                if ( ((!isOuterLog && isEnter) && (s_isOuterLog && s_isEnter)) ||
+                        ((isOuterLog && !isEnter) && (!s_isOuterLog && !s_isEnter)) )
                 {
                     sendLog = false;
                 }
@@ -75,7 +75,7 @@ public class FlowTraceWriter {
 
         if (s_tid == 0)
         {
-            if ( (isInnerLog && isEnter) || (!isInnerLog && !isEnter) )
+            if ( (isOuterLog && isEnter) || (!isOuterLog && !isEnter) )
             {
                 s_log_type       = log_type;
                 s_log_flags      = log_flags;
