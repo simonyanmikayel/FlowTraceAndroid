@@ -28,7 +28,6 @@ public class FlowTraceWriter {
     private static int s_log_flags;
     private static int s_thisID;
     private static long s_tid;
-    private static boolean s_flowSaved;
 
     static {
         if (!DEBUG) {
@@ -54,7 +53,7 @@ public class FlowTraceWriter {
         boolean isOuterLog = ((log_flags & LOG_FLAG_OUTER_LOG)== LOG_FLAG_OUTER_LOG);
         boolean sendLog = true;
 
-        if (s_flowSaved && s_tid == tid)
+        if (s_tid == tid)
         {
             if (s_thisID == thisID)
             {
@@ -66,7 +65,6 @@ public class FlowTraceWriter {
                     sendLog = false;
                 }
             }
-            s_flowSaved = false;
             s_tid = 0;
         }
 
@@ -81,8 +79,6 @@ public class FlowTraceWriter {
                 s_log_flags      = log_flags;
                 s_thisID         = thisID;
                 s_tid            = tid;
-
-                s_flowSaved      = true;
             }
         }
     }
