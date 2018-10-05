@@ -37,3 +37,11 @@ dependencies {
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
 }
+
+task copyToBin () {
+    copy {
+        from 'build/intermediates/cmake/release/obj/armeabi-v7a/libflowtrace.so'
+        into "${project.getRootProject().getRootDir()}/bin"
+    }
+}
+build.finalizedBy(copyToBin)
