@@ -244,6 +244,8 @@ public class FlowTraceInjector
                 constantInstruction.opcode == InstructionConstants.OP_INVOKEDYNAMIC)
         {
 
+            invoceInstruction = constantInstruction.opcode;
+
             try
             {
                 String callerClassName = clazz.getName();
