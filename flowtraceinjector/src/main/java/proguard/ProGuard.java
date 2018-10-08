@@ -125,7 +125,7 @@ public class ProGuard
             backport();
         }
 
-        if (configuration.injectTraces)
+        if (configuration.injectFlowTraces)
         {
             injectTraces();
         }

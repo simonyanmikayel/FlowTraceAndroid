@@ -9,10 +9,8 @@
 -dontpreverify
 -dontobfuscate
 
-#-addconfigurationdebugging
-
 #-dontinject
-#-dontinjectlibs
+-flowtracesfilter !android/**, !java/**
 
 -keep class *.* {
 

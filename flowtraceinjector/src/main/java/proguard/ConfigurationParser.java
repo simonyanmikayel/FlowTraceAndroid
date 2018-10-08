@@ -186,7 +186,9 @@ public class ConfigurationParser
             else if (ConfigurationConstants.ASSUME_NO_EXTERNAL_RETURN_VALUES_OPTION          .startsWith(nextWord)) configuration.assumeNoExternalReturnValues          = parseClassSpecificationArguments(true, configuration.assumeNoExternalReturnValues);
             else if (ConfigurationConstants.ALLOW_ACCESS_MODIFICATION_OPTION                 .startsWith(nextWord)) configuration.allowAccessModification               = parseNoArgument(true);
             else if (ConfigurationConstants.MERGE_INTERFACES_AGGRESSIVELY_OPTION             .startsWith(nextWord)) configuration.mergeInterfacesAggressively           = parseNoArgument(true);
-            else if (ConfigurationConstants.DONT_INJECT_OPTION                               .startsWith(nextWord)) configuration.injectTraces                           = parseNoArgument(false);
+
+            else if (ConfigurationConstants.DONT_INJECT_FLOW_TRACES_OPTION                   .startsWith(nextWord)) configuration.injectFlowTraces                      = parseNoArgument(false);
+            else if (ConfigurationConstants.FLOW_TRACES_FILTER_OPTION                          .startsWith(nextWord)) configuration.flowTracesFilter = parseCommaSeparatedList("flow trace filters", true, true, false, true, false, true, false, false, false, configuration.flowTracesFilter);
 
             else if (ConfigurationConstants.DONT_OBFUSCATE_OPTION                            .startsWith(nextWord)) configuration.obfuscate                             = parseNoArgument(false);
             else if (ConfigurationConstants.PRINT_MAPPING_OPTION                             .startsWith(nextWord)) configuration.printMapping                          = parseOptionalFile();

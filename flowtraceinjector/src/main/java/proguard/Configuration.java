@@ -291,9 +291,14 @@ public class Configuration
     public List      adaptResourceFileContents;
 
     /**
-     * Specifies whether inject traces.
+     * Specifies whether inject flow traces.
      */
-    public boolean   injectTraces                        = true;
+    public boolean injectFlowTraces = true;
+
+    /**
+     * A list of <code>String</code>s specifying a filter for classes to skip flow traces of their methods
+     */
+    public List flowTracesFilter;
 
     ///////////////////////////////////////////////////////////////////////////
     // Preverification options.

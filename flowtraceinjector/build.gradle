@@ -14,5 +14,9 @@ task copyToBin () {
         from 'build/libs/flowtraceinjector.jar'
         into "${project.getRootProject().getRootDir()}/bin"
     }
+    copy {
+        from 'build/libs/flowtraceinjector.jar'
+        into "${project.getRootProject().getRootDir()}/flowtraces"
+    }
 }
 build.finalizedBy(copyToBin)

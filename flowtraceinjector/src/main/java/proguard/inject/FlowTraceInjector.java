@@ -22,9 +22,13 @@ import proguard.classfile.util.SimplifiedVisitor;
 import proguard.classfile.visitor.*;
 import proguard.io.ClassPathDataEntry;
 import proguard.io.ClassReader;
+import proguard.util.ClassNameParser;
+import proguard.util.ListParser;
 import proguard.util.MultiValueMap;
 import proguard.classfile.attribute.annotation.*;
 import proguard.classfile.attribute.annotation.target.*;
+import proguard.util.StringMatcher;
+
 import java.io.IOException;
 import static proguard.classfile.util.ClassUtil.internalClassName;
 import static proguard.inject.FlowTraceWriter.LOG_FLAG_OUTER_LOG;
@@ -57,6 +61,7 @@ public class FlowTraceInjector
     private boolean inRunnable;
     private int unknownRef;
     private int invoceInstruction = 0;
+    private StringMatcher regularExpressionMatcher;
 
 
     /**
@@ -99,9 +104,19 @@ public class FlowTraceInjector
         // Set the injected class map for the extra visitor.
         this.injectedClassMap = injectedClassMap;
 
-        // Replace the instruction sequences in all non-ProGuard classes.
-        String       regularExpression = "!proguard/**,!android/**,!java/**";
-        //String       regularExpression = "!proguard/**";
+        StringBuilder sb = new StringBuilder();
+        sb.append("!proguard/**");
+        if (configuration.flowTracesFilter != null) {
+            for (Object o: configuration.flowTracesFilter) {
+                sb.append(",");
+                sb.append(o.toString());
+            }
+        }
+        String regularExpression = sb.toString();
+
+        regularExpressionMatcher = new ListParser(new ClassNameParser(null)).parse(regularExpression);
+
+        //regularExpression = "!proguard/**,!android/**,!java/**";
         programClassPool.classesAccept(
                 new ClassNameFilter(regularExpression,
                         this));
@@ -262,14 +277,15 @@ public class FlowTraceInjector
                 int callClassNameRef = ____.getConstantPoolEditor().addStringConstant(callerClassName, clazz, null);
                 int callMetodNameRef = ____.getConstantPoolEditor().addStringConstant(callerMethodName, clazz, null);
 
-                if (verbose || !(calledClassName.startsWith("android/") || calledClassName.startsWith("java/")))
+                if (regularExpressionMatcher.matches(calledClassName))
+                //if (verbose || !(calledClassName.startsWith("android/") || calledClassName.startsWith("java/")))
                 {
                     codeAttributeEditor.insertBeforeInstruction(offset, logInstruction(0, LOG_INFO_ENTER, LOG_FLAG_OUTER_LOG, thisClassNameRef, thisMetodNameRef, callClassNameRef, callMetodNameRef, 0, calledLineNumber));
                     codeAttributeEditor.insertAfterInstruction(offset, logInstruction(0, LOG_INFO_EXIT, LOG_FLAG_OUTER_LOG, thisClassNameRef, thisMetodNameRef, callClassNameRef, callMetodNameRef, 0, calledLineNumber));
                 }
                 else
                 {
-                    if (DEBUG)
+                    //if (DEBUG)
                     {
                         System.out.println("Skipping: " + calledClassName);
                     }
