@@ -1,5 +1,5 @@
 # Flow traces for android applications
-This tool allows see logs and call tree (flow) of your application like this:
+This tool allows you to see logs and call tree (flow) of your application like this:
 
 <img src="https://github.com/simonyanmikayel/FlowTrace/blob/master/Out/Help/flowtraces.png" width="350" height="290">
 
