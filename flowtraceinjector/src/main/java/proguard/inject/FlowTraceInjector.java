@@ -285,7 +285,7 @@ public class FlowTraceInjector
                 }
                 else
                 {
-                    //if (DEBUG)
+                    if (DEBUG)
                     {
                         System.out.println("Skipping: " + calledClassName);
                     }
