@@ -26,3 +26,16 @@ buildscript {
         }
 ```
 6. Copy **libflowtrace.so** file under **src\main\jniLibs\armeabi-v7a** directory of your application module
+7. in your **AndroidManifest.xml** outside of application tag add:
+```
+<uses-permission android:name="android.permission.INTERNET" /> 
+```
+8. In your android smartphone or android devise simulator under **/data/data** folder create **flowtrace.ini** file.
+Note: if you have not permission to **/data/data** folder then create **flowtrace.ini** file under **/data/data/<you_app_name>** folder. 
+9. In **flowtrace.ini** file write IP address of your pc and port number used by FlowTrace.exe application (default is 8888).  For example:
+```
+   ip=10.1.2.3
+   port=8888
+```
+10. Run **FlowTrace.exe.** 
+11. Build and install your application.
