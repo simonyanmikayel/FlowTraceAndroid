@@ -16,6 +16,7 @@ public class ExampleUnitTest {
 //    }
     @Test
     public void init_trases() {
+        System.out.println("init_trases");
 //        try
 //        {
 //            System.loadLibrary("native-lib");
