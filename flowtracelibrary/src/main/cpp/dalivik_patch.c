@@ -227,6 +227,13 @@ static void* hook_log_w2(JNIEnv *env, jclass cls, jobject tag, jobject msg, jobj
 	return (void *)1;
 }
 
+static struct dalvik_hook_t dh_log_e1;
+static void* hook_log_e1(JNIEnv *env, jclass cls, jobject tag, jobject msg)
+{
+    print_log(env, ERROR, tag, msg, 0);
+    return (void *)1;
+}
+
 static struct dalvik_hook_t dh_log_e2;
 static void* hook_log_e2(JNIEnv *env, jclass cls, jobject tag, jobject msg, jobject tr)
 {
@@ -283,6 +290,7 @@ int do_patch()
     dalvik_hook_setup(&dh_log_w1, "Landroid/util/Log;",  "w",  "(Ljava/lang/String;Ljava/lang/String;)I", 2, hook_log_w1);
     dalvik_hook_setup(&dh_log_w2, "Landroid/util/Log;",  "w",  "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I", 3, hook_log_w2);
 
+    dalvik_hook_setup(&dh_log_e1, "Landroid/util/Log;",  "e",  "(Ljava/lang/String;Ljava/lang/String;)I", 2, hook_log_e1);
     dalvik_hook_setup(&dh_log_e2, "Landroid/util/Log;",  "e",  "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I", 3, hook_log_e2);
 
     dalvik_hook_setup(&dh_log_println, "Landroid/util/Log;",  "println",  "(ILjava/lang/String;Ljava/lang/String;)I", 3, hook_log_println);

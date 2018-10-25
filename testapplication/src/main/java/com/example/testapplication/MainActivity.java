@@ -80,6 +80,7 @@ public class MainActivity extends AppCompatActivity {
     void doDummy()
     {
         dummy++;
+        Log.e("TEST e", "test error");
         Log.e("TEST e", "test exception", new Exception("exception thrown"));
         doDummy_2();
         mHandler.post(new Runnable() {
