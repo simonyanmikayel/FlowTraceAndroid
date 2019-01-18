@@ -78,8 +78,8 @@ typedef struct
 typedef struct
 {
     int data_len;
-    unsigned int term_sec;
-    unsigned int term_msec;
+    unsigned int pack_nn;
+    unsigned int retry_nn;
 } NET_PACK_INFO;
 
 typedef struct
