@@ -146,6 +146,18 @@ static int valist_printf(const char *fmt, va_list args)
     return cb_trace;
 }
 
+void dump_rec( LOG_REC* rec )
+{
+    TRACE("Flow trace: rec-> len: %d, type: %d, flags: %d, nn: %d, "
+          "cb_app: %d, cb_module: %d, cb_fn: %d, cb_trace: %d, "
+          "pid: %d, tid: %d, sec: %d, msec: %u, "
+          "this_fn: %x, call_site: %x, fn_line: %d, call_line: %d, data: %s\n\n",
+          rec->len, rec->log_type, rec->log_flags, rec->nn,
+          rec->cb_app_name, rec->cb_module_name, rec->cb_fn_name, rec->cb_trace,
+          rec->pid, rec->tid, rec->sec, rec->msec,
+          rec->this_fn, rec->call_site, rec->fn_line, rec->call_line, rec->data);
+}
+
 static int get_color(UDP_LOG_Severity clr)
 {
     //-1 default; 0 black; 1 red; 2 green; 3 yellow; 4 blue; 5 magenta; 6 cyan; 7 white
@@ -222,9 +234,8 @@ void FlowTraceSendLog(const char* module_name, int cb_module_name, unsigned int 
     if (len & 0x3)
         len = ((len / 4) * 4) + 4; //len = ((len >> 2) << 2) + 4;
 
-    rec->len = len;
-
-    pack.info.data_len = len;
+    //dump_rec(rec);
+    pack.info.data_len = rec->len = len;
     net_send_pack(&pack);
 }
 

@@ -99,4 +99,5 @@ int FlowTraceSendTrace(UDP_LOG_Severity severity, int flags, const char* fn_name
 void init_dalvik_hook();
 int init_sender(char* ip, int port);
 void net_send_pack( NET_PACK* pack  );
+void dump_rec( LOG_REC* rec );
 #endif //FLOWTRACEANDROID_FLOWTRACE_H
