@@ -90,6 +90,11 @@ static void print_log(JNIEnv *env, int priority, jobject tag, jobject msg, jobje
     char fn_name[512] = {'j','a','v','a'};
     int call_line = 0;
 
+    if (!tag)
+        tag = (*env)->NewStringUTF(env, "null");
+    if (!msg)
+        msg = (*env)->NewStringUTF(env, "null");
+
     jvalue args[4];
     args[0].i = 0;
     args[1].i = priority;

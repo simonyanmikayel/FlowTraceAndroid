@@ -81,7 +81,7 @@ public class MainActivity extends AppCompatActivity {
     {
         dummy++;
         Log.e("TEST e", "test error");
-        Log.e("TEST e", "test exception", new Exception("exception thrown"));
+        Log.e(null, null, new Exception("exception thrown"));
         doDummy_2();
         mHandler.post(new Runnable() {
             @Override

@@ -31,8 +31,8 @@ static sem_t sema;
 static struct sockaddr_in send_sin;
 static int udpSock = -1;
 static int blocking = 0;
-static const int retryDelay = 300000; //microseconds
-static const int max_retry = 1;
+static const int retryDelay = 200000; //microseconds
+static const int max_retry = 2;
 static int cur_max_retry = max_retry;
 
 static inline void lock() {
