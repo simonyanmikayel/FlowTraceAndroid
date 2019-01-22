@@ -134,9 +134,10 @@ static void udp_send_cashed_buf() {
     } else {
         NET_PACK_INFO ack;
         ssize_t cb;
+        int flags;
         recv_again:
-        cb = recvfrom(udpSock, &ack, sizeof(ack), (idle ? MSG_DONTWAIT : 0),
-                      (struct sockaddr *) 0, 0);
+        flags = 0; //(packets[i].info.retry_nn < max_retry) ? 0 : MSG_DONTWAIT;
+        cb = recvfrom(udpSock, &ack, sizeof(ack), flags, (struct sockaddr *) 0, 0);
         if (cb != sizeof(ack)) {
             TRACE("Flow trace: no ack received index=%d [%s, %d]\n", i, strerror(errno), errno);
             if (packets[i].info.retry_nn < max_retry) {
