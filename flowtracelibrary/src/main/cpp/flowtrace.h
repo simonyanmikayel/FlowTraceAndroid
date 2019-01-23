@@ -59,7 +59,7 @@ typedef struct
     int len;
     short log_type;
     short log_flags;
-    int nn;
+    unsigned int nn;
     short cb_app_name;
     short cb_module_name;
     short cb_fn_name;

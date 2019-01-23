@@ -25,7 +25,7 @@ int cb_app_name = 0;
 int app_pid = 0;
 char ip[SMAL_BUF_SIZE + 1] = { 0 };
 int port = 0;
-static int NN = 0;
+static unsigned int NN = 0;
 
 static void get_app_path(char* name, int pid)
 {

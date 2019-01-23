@@ -20,19 +20,18 @@ static int working = 1;
 static const int maxBufIndex = 32;
 static int sendIndex = 0;
 static int copyIndex = 0;
-static int lockIndex = -1;
 NET_PACK packets[maxBufIndex];
 static struct timespec time_stamp;
 static char *net_ip;
 static int net_port;
-static int PACK_NN = 0;
-static int REC_NN = 0;
 static sem_t sema;
 static struct sockaddr_in send_sin;
 static int udpSock = -1;
 static const int retryDelay = 200000; //microseconds
 static const int max_retry = 3;
 static int idle = 0;
+unsigned int REC_NN = 0;
+unsigned int PACK_NN = 0;
 
 static inline void lock() {
     pthread_mutex_lock(&g_mutex);
@@ -88,14 +87,11 @@ static inline int prevIndex(int i) {
 
 //return indexof buffer were data have been copied
 static int copy_to_cash_buf(LOG_REC *rec) {
-    if (idle || udpSock < 0) {
-        return 1; //return success
-    }
     //dump_rec(rec);
     int curIdx = copyIndex;
     int idx = -1;
     for (int j = 0, i = copyIndex; j < maxBufIndex; j++) {
-        if (rec->len + packets[i].info.data_len < MAX_NET_BUF && i != lockIndex) {
+        if (rec->len + packets[i].info.data_len < MAX_NET_BUF) {
             memcpy(packets[i].data + packets[i].info.data_len, rec, rec->len);
             packets[i].info.data_len += rec->len;
             copyIndex = i;
@@ -103,6 +99,8 @@ static int copy_to_cash_buf(LOG_REC *rec) {
             break;
         }
         i = nextIndex(i);
+        if (i == sendIndex)
+            break;
     }
     if (idx >= 0) {
         if (idx != curIdx)
@@ -122,8 +120,7 @@ static void udp_send_cashed_buf() {
 //    TRACE("Flow trace: Sending index %d\n", i);
     packets[i].info.pack_nn = ++PACK_NN;
     packets[i].info.retry_nn = 0;
-    lockIndex = i;  //block this buffer
-    if (copyIndex == sendIndex)
+    if (copyIndex == i)
         copyIndex = nextIndex(i);
 
     send_again:
@@ -143,28 +140,20 @@ static void udp_send_cashed_buf() {
             if (packets[i].info.retry_nn < max_retry) {
                 packets[i].info.retry_nn++;
                 goto send_again;
-            } else {
-                idle = 1;
             }
+            idle = 1;
         } else {
-            idle = 0;
             if (ack.pack_nn != packets[i].info.pack_nn || ack.retry_nn != packets[i].info.retry_nn) {
                 TRACE("Flow trace: received old ack: index=%d pack:%d/%d retry:%d/%d\n", i, ack.pack_nn,
                       packets[i].info.pack_nn, ack.retry_nn, packets[i].info.retry_nn);
                 goto recv_again;
+            } else {
+                idle = 0;
             }
         }
     }
 
-    if (packets[i].info.data_len != 0) {
-        TRACE("Flow trace: could not send index %d\n", i);
-    }
-
-    if (!idle) {
-        packets[i].info.pack_nn = 0;
-        packets[i].info.data_len = 0;
-        sendIndex = nextIndex(i);
-    } else if (idle == 1) {
+    if (idle) {
         TRACE("Flow trace: could not send. Reseting buffers\n");
         //memset(packets, 0, sizeof(packets));
         for (int k = 0; k < maxBufIndex; k++) {
@@ -172,10 +161,12 @@ static void udp_send_cashed_buf() {
             packets[k].info.data_len = 0;
         }
         sendIndex = copyIndex = 0;
-        idle = 2;
         //stop_udp_trace();
+    } else {
+        packets[i].info.pack_nn = 0;
+        packets[i].info.data_len = 0;
+        sendIndex = nextIndex(i);
     }
-    lockIndex = -1;
 }
 
 static void *udp_send_thread(void *arg) {
@@ -185,15 +176,17 @@ static void *udp_send_thread(void *arg) {
 
     while (working) {
         clock_gettime(CLOCK_REALTIME, &ts);
-        ts.tv_sec += 2;
         if (idle) {
-            udp_send_cashed_buf();
-        } else {
-            sem_timedwait(&sema, &ts);
-            lock();
-            udp_send_cashed_buf();
-            unlock();
+            ts.tv_nsec += 20000000;
+            ts.tv_sec += ts.tv_nsec / 1000000000;
+            ts.tv_nsec %= 1000000000;        }
+        else {
+            ts.tv_sec += 2;
         }
+        sem_timedwait(&sema, &ts);
+        lock();
+        udp_send_cashed_buf();
+        unlock();
     }
 
     TRACE("Flow trace: exit send thread\n");
@@ -201,19 +194,33 @@ static void *udp_send_thread(void *arg) {
 }
 
 void net_send_pack(NET_PACK *pack) {
-    static int NN = 0;
     LOG_REC *rec = (LOG_REC *) (pack->data);
-    lock();
-    rec->nn = ++NN;
-    int ok = copy_to_cash_buf(rec);
-    if ( !ok ) {
-        udp_send_cashed_buf();
-        ok = copy_to_cash_buf(rec);
+    int ok = 0;
+
+    if (idle || udpSock < 0) {
+        TRACE("Flow trace: UDP Send blocked NN %d\n", REC_NN);
+    } else {
+        lock();
+        rec->nn = ++REC_NN;
+        if (idle || udpSock < 0) {
+            TRACE("Flow trace: UDP Send blocked NN %d\n", REC_NN);
+        } else {
+            ok = copy_to_cash_buf(rec);
+            if ( !ok ) {
+                udp_send_cashed_buf();
+                if (idle || udpSock < 0) {
+                    TRACE("Flow trace: UDP Send blocked NN %d\n", REC_NN);
+                } else {
+                    ok = copy_to_cash_buf(rec);
+                }
+            }
+        }
+        unlock();
     }
+
     if ( !ok ) {
-        TRACE("Flow trace: UDP Send faild\n");
+        TRACE("Flow trace: UDP Send faild NN %d\n", REC_NN);
     }
-    unlock();
 }
 
 //#define _TEST_THREAD
@@ -232,6 +239,8 @@ static void startTest() {
     if (!thtradStarted) {
         thtradStarted = 1;
         pthread_t threadId;
+        pthread_create(&threadId, NULL, &test_send_thread, NULL);
+        pthread_create(&threadId, NULL, &test_send_thread, NULL);
         pthread_create(&threadId, NULL, &test_send_thread, NULL);
     }
 }
