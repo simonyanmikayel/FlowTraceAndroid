@@ -29,7 +29,7 @@ static struct sockaddr_in send_sin;
 static int udpSock = -1;
 static const int retryDelay = 200000; //microseconds
 static const int max_retry = 3;
-static int idle = 0;
+static int idle = 1;
 unsigned int REC_NN = 0;
 unsigned int PACK_NN = 0;
 
