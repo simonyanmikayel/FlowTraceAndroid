@@ -78,8 +78,9 @@ typedef struct
 typedef struct
 {
     int data_len;
-    unsigned int pack_nn;
-    unsigned int retry_nn;
+    int pack_nn;
+    short retry_nn;
+    short full;
 } NET_PACK_INFO;
 
 typedef struct
