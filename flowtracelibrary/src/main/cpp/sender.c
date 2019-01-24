@@ -25,7 +25,8 @@ NET_PACK packets[maxBufIndex];
 #endif
 
 static int working = 1;
-static pthread_mutex_t g_mutex;
+static pthread_mutex_t g_mutex_send;
+static pthread_mutex_t g_mutex_copy;
 static struct timespec time_stamp;
 static char *net_ip;
 static int net_port;
@@ -38,12 +39,21 @@ static int idle = 1;
 unsigned int REC_NN = 0;
 unsigned int PACK_NN = 0;
 
-static inline void lock() {
-    pthread_mutex_lock(&g_mutex);
+
+static inline void lock_copy() {
+    pthread_mutex_lock(&g_mutex_copy);
 }
 
-static inline void unlock() {
-    pthread_mutex_unlock(&g_mutex);
+static inline void unlock_copy() {
+    pthread_mutex_unlock(&g_mutex_copy);
+}
+
+static inline void lock_send() {
+    pthread_mutex_lock(&g_mutex_send);
+}
+
+static inline void unlock_send() {
+    pthread_mutex_unlock(&g_mutex_send);
 }
 
 static void stop_udp_trace(void) {
@@ -123,6 +133,7 @@ static int udp_send_pack(NET_PACK* pack) {
     pack->info.pack_nn = ++PACK_NN;
     pack->info.retry_nn = 0;
     send_again:
+    int ret = 0;
     if (sendto(udpSock, pack, pack->info.data_len + sizeof(NET_PACK_INFO), 0,
                (const struct sockaddr *)&send_sin, sizeof(send_sin)) < 0) {
         TRACE_ERR("Flow trace: sendto error: %s, %d\n", strerror(errno), errno);
@@ -141,12 +152,14 @@ static int udp_send_pack(NET_PACK* pack) {
                 goto send_again;
             }
         } else {
+            if (ack.pack_nn != pack->info.pack_nn) {
+                ret = 1;
+            }
+
             if (ack.pack_nn != pack->info.pack_nn || ack.retry_nn != pack->info.retry_nn) {
                 TRACE("Flow trace: received old ack: index=%d pack:%d/%d retry:%d/%d\n", i, ack.pack_nn,
                       packets[i].info.pack_nn, ack.retry_nn, packets[i].info.retry_nn);
                 goto recv_again;
-            } else {
-                return 1;
             }
         }
     }
@@ -187,8 +200,9 @@ static void udp_send_cashed_buf() {
 static void *udp_send_thread(void *arg) {
     TRACE("Flow trace: started send thread\n");
 
-    struct timespec ts = {1, 0};
-    NET_PACK iddlePack;
+    static struct timespec ts = {1, 0};
+    static NET_PACK iddlePack;
+    iddlePack.info.data_len = 0;
 
     while (working) {
         clock_gettime(CLOCK_REALTIME, &ts);
@@ -198,16 +212,16 @@ static void *udp_send_thread(void *arg) {
             ts.tv_nsec %= 1000000000;
             sem_timedwait(&sema, &ts);
             if (udp_send_pack(&iddlePack)) {
-                lock();
+                lock_send();
                 idle = 0;
-                unlock();
+                unlock_send();
             }
         } else {
             ts.tv_sec += 2;
             sem_timedwait(&sema, &ts);
-            lock();
+            lock_send();
             udp_send_cashed_buf();
-            unlock();
+            unlock_send();
         }
     }
 
@@ -221,7 +235,7 @@ void net_send_pack(NET_PACK *pack) {
     LOG_REC *rec = (LOG_REC *) (pack->data);
     int ok = 0;
 
-    lock();
+    lock_send();
     rec->nn = ++REC_NN;
     if (idle || udpSock < 0) {
         TRACE("Flow trace: UDP Send blocked NN %d\n", rec->nn);
@@ -236,15 +250,15 @@ void net_send_pack(NET_PACK *pack) {
             }
         }
     }
-    unlock();
+    unlock_send();
 
     if ( !ok ) {
         TRACE("Flow trace: UDP Send faild NN %d\n", rec->nn);
     }
 #else
-    lock();
+    lock_send();
     udp_send_pack(pack);
-    unlock();
+    unlock_send();
 #endif
 }
 
@@ -276,7 +290,8 @@ int init_sender(char *p_ip, int p_port) {
     net_port = p_port;
     int ret = 0;
     pthread_t threadId;
-    pthread_mutex_init(&g_mutex, NULL);
+    pthread_mutex_init(&g_mutex_send, NULL);
+    pthread_mutex_init(&g_mutex_copy, NULL);
     sem_init(&sema, 0, 0);
     ret = init_udp_socket();
 #ifdef NET_BUFF
