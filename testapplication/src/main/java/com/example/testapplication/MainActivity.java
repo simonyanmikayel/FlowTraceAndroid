@@ -45,14 +45,14 @@ public class MainActivity extends AppCompatActivity {
                 Log.d("TEST", "test Flowtrce");
                 Log.d("TEST", stringFromJNI());
                 System.loadLibrary("flowtrace");
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG).setAction("Action", null).show();
 
             }
         });
 
         TextView tv = (TextView) findViewById(R.id.sample_text);
         tv.setText(stringFromJNI());
+        Log.d("TEST", "onCreate");
     }
 
     @Override
