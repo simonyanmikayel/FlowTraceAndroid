@@ -20,7 +20,7 @@
 #ifdef NET_BUFF
 static int sendIndex = 0;
 static int copyIndex = 0;
-static const int maxBufIndex = 1024; //put at least 32
+static const int maxBufIndex = 128;
 NET_PACK packets[maxBufIndex];
 static NET_PACK pingPack;
 #endif
@@ -295,7 +295,7 @@ void net_send_pack(NET_PACK *pack) {
 #endif
 }
 
-#define _TEST_THREAD
+//#define _TEST_THREAD
 #ifdef _TEST_THREAD
 static void* test_send_thread (void *arg) {
     int i = 0;
