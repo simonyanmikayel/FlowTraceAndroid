@@ -20,7 +20,7 @@
 #ifdef NET_BUFF
 static int sendIndex = 0;
 static int copyIndex = 0;
-static const int maxBufIndex = 128;
+static const int maxBufIndex = 1000;
 NET_PACK packets[maxBufIndex];
 static NET_PACK pingPack;
 #endif

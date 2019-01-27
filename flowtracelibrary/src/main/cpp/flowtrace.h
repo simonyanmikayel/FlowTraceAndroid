@@ -5,8 +5,8 @@
 #ifndef FLOWTRACEANDROID_FLOWTRACE_H
 #define FLOWTRACEANDROID_FLOWTRACE_H
 
-//#define MAX_NET_BUF 1400 // this size of UDP guaranteed to be send as single package
-#define MAX_NET_BUF 8*1024 // max UDP datagam is 65515 Bytes
+#define MAX_NET_BUF 1400 // this size of UDP guaranteed to be send as single package
+//#define MAX_NET_BUF 8*1024 // max UDP datagam is 65515 Bytes
 #define MAX_APP_PATH_LEN 128
 #define MAX_APP_NAME_LEN 128
 #define MAX_MODULE_NAME_LEN 128
