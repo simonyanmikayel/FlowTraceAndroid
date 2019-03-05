@@ -15,6 +15,37 @@
 #include <time.h>
 #include <semaphore.h>
 
+pthread_mutex_t g_mutex_send;
+sem_t send_sem;
+
+#ifdef _TEST_THREAD
+static void* test_send_thread (void *arg) {
+    int i = 0;
+    TRACE("Flow trace: test_send_thread\n");
+    for(;;) {
+        FlowTraceSendTrace(6, LOG_FLAG_JAVA, __FILE__, -1, 0, __LINE__, "test %d\n", ++i);
+        //usleep(3000); //1000000microsecond =1sec
+    }
+    return 0;
+}
+void startTest() {
+    static int thtradStarted = 0;
+    if (!thtradStarted) {
+        thtradStarted = 1;
+        pthread_t threadId;
+        //pthread_create(&threadId, NULL, &test_send_thread, NULL);
+        //pthread_create(&threadId, NULL, &test_send_thread, NULL);
+        pthread_create(&threadId, NULL, &test_send_thread, NULL);
+    }
+}
+#endif //_TEST_THREAD
+
+#ifndef _USE_ADB
+
+#define USE_UDP
+
+#ifdef USE_UDP
+
 #define NET_BUFF
 
 #ifdef NET_BUFF
@@ -25,18 +56,17 @@ NET_PACK packets[maxBufIndex];
 static NET_PACK pingPack;
 #endif
 
+static char *net_ip = "";
+static int net_port;
 static int working = 1;
-static pthread_mutex_t g_mutex_send;
+
 static pthread_mutex_t g_mutex_copy;
 static pthread_mutex_t g_mutex_pack;
 static struct timespec time_stamp;
-static char *net_ip = "";
-static int net_port;
-static sem_t send_sem;
 static struct sockaddr_in send_sin;
 static int udpSock = -1;
-static const int retryDelay = 200000; //microseconds 999999999
-static const int max_retry = 3;
+static int retryDelay = 20*1000;
+static int max_retry = 5;
 static int connected = 0;
 unsigned int REC_NN = 0;
 unsigned int PACK_NN = 0;
@@ -148,8 +178,10 @@ static int udp_send_pack(NET_PACK* pack) {
 
     pack->info.pack_nn = ++PACK_NN;
     pack->info.retry_nn = 0;
+    pack->info.retry_delay = retryDelay;
+    pack->info.retry_count = max_retry;
 
-    send_again:
+send_again:
     if (sendto(udpSock, pack, pack->info.data_len + sizeof(NET_PACK_INFO), 0,
                (const struct sockaddr *)&send_sin, sizeof(send_sin)) < 0) {
         TRACE_ERR("Flow trace: sendto error: %s, %d (dest: %s:%d)\n", strerror(errno), errno, net_ip, net_port);
@@ -295,32 +327,15 @@ void net_send_pack(NET_PACK *pack) {
 #endif
 }
 
-//#define _TEST_THREAD
-#ifdef _TEST_THREAD
-static void* test_send_thread (void *arg) {
-    int i = 0;
-    TRACE("Flow trace: test_send_thread\n");
-    for(;;) {
-        FlowTraceSendTrace(6, LOG_FLAG_JAVA, __FILE__, -1, 0, __LINE__, "test %d\n", ++i);
-        //usleep(1000000); //microsecond
-    }
-    return 0;
-}
-static void startTest() {
-    static int thtradStarted = 0;
-    if (!thtradStarted) {
-        thtradStarted = 1;
-        pthread_t threadId;
-        pthread_create(&threadId, NULL, &test_send_thread, NULL);
-        pthread_create(&threadId, NULL, &test_send_thread, NULL);
-        pthread_create(&threadId, NULL, &test_send_thread, NULL);
-    }
-}
-#endif
 
-int init_sender(char *p_ip, int p_port) {
+
+int init_sender(char *p_ip, int p_port, short retry_delay, short retry_count) {
     net_ip = strdup(p_ip);
     net_port = p_port;
+    if (retry_count > 0) {
+        retryDelay = retry_delay*1000; //confert milisecunds to microsecunds
+        max_retry = retry_count;
+    }
     int ret = 0;
     pthread_t threadId;
     pthread_mutex_init(&g_mutex_send, NULL);
@@ -341,3 +356,147 @@ int init_sender(char *p_ip, int p_port) {
     return ret;
 }
 
+#else //USE_UDP
+
+static char *net_ip = "127.0.0.1"; //adb reverse tcp:8889 tcp:8889
+static int net_port;
+static sem_t sema;
+static pthread_mutex_t g_mutex;
+static struct sockaddr_in server;
+static int working = 1;
+static int waiting = 0;
+static int tcpSock = -1;
+#define MAX_TCP_BUF 16*1024  //maximum TCP window size in Microsoft Windows 2000 is 17,520 bytes
+static char* buf[MAX_TCP_BUF + sizeof(NET_PACK_INFO)];
+NET_PACK* netPackCache = (NET_PACK*)buf;
+
+static void lock(const char* coller, int call_line)
+{
+//    TRACE("Flow trace:  -> %s %d \n", coller, call_line);
+    pthread_mutex_lock( &g_mutex );
+}
+
+static void unlock(const char* coller, int call_line)
+{
+//    TRACE("Flow trace:  <- %s %d \n", coller, call_line);
+    pthread_mutex_unlock( &g_mutex );
+}
+
+static void resetTcpSocket()
+{
+    if (tcpSock != -1) {
+        close(tcpSock);
+        tcpSock = -1;
+    }
+    sem_post(&sema);
+}
+
+
+static void tcp_send_pack( )
+{
+    if (tcpSock == -1 || netPackCache->info.data_len == 0)
+    {
+        return;
+    }
+    TRACE("Flow trace: Sending %d bytes from thread %d\n", netPackCache->info.data_len + sizeof(NET_PACK_INFO), pthread_self());
+    netPackCache->info.pack_nn = 0;
+    netPackCache->info.retry_nn = 0;
+    if( netPackCache->info.data_len && send(tcpSock , netPackCache , netPackCache->info.data_len + sizeof(NET_PACK_INFO), 0) < 0)
+    {
+        TRACE_ERR("Flow trace: Flow trace: Send failed");
+        resetTcpSocket();
+    } else {
+        netPackCache->info.data_len = 0;
+    }
+
+}
+
+static void* tcp_send_thread (void *arg)
+{
+    server.sin_addr.s_addr = inet_addr(net_ip);
+    server.sin_family = AF_INET;
+    server.sin_port = htons( net_port );
+
+    while (working)
+    {
+        if (tcpSock == -1)
+        {
+            tcpSock = socket(AF_INET , SOCK_STREAM , 0);
+            if (tcpSock == -1)
+            {
+                TRACE_ERR("Flow trace: Could not create socket\n");
+                break;
+            }
+            if (connect(tcpSock , (struct sockaddr *)&server , sizeof(server)) < 0)
+            {
+                TRACE_ERR("Flow trace: Could not connect to %s:%d", net_ip, net_port);
+                resetTcpSocket();
+                continue;
+            }
+        }
+        waiting = 1;
+        sem_wait(&sema);
+        waiting = 0;
+        if (working)
+        {
+            lock(__FUNCTION__, __LINE__);
+            tcp_send_pack();
+            unlock(__FUNCTION__, __LINE__);
+        }
+    }
+
+    TRACE("Flow trace: exit send thread\n");
+    return 0;
+}
+
+
+void net_send_pack( NET_PACK* pack )
+{
+    LOG_REC* rec  = (LOG_REC*)(pack->data);
+    lock(__FUNCTION__, __LINE__);
+    if (tcpSock == -1 && (rec->len + netPackCache->info.data_len >= MAX_TCP_BUF))
+    {
+        if (waiting) {
+            sem_post(&sema); //trigger connection
+        }
+    }
+    else
+    {
+        if (rec->len + netPackCache->info.data_len >= MAX_TCP_BUF)
+        {
+            tcp_send_pack();
+        }
+        if (rec->len + netPackCache->info.data_len < MAX_TCP_BUF) {
+            memcpy(netPackCache->data + netPackCache->info.data_len, rec, rec->len);
+            netPackCache->info.data_len += rec->len;
+        }
+        sem_post(&sema);
+    }
+    unlock(__FUNCTION__, __LINE__);
+}
+
+int init_sender(char *p_ip, int p_port, short retry_delay, short retry_count) {
+    //net_ip = strdup(p_ip);
+    net_port = p_port;
+    sem_init(&sema, 0,0);
+
+    pthread_mutex_init( &g_mutex, NULL );
+    pthread_t threadId;
+    int tcp_ok = (pthread_create(&threadId, NULL, &tcp_send_thread, NULL) == 0);
+    if ( !tcp_ok )
+    {
+        TRACE_ERR("Flow trace: Error creating thread for tcp sender\n");
+        return 0;
+    }
+    return tcp_ok;
+}
+
+#endif //USE_UDP
+
+#else //USE_UDP
+int init_sender(char *p_ip, int p_port, short retry_delay, short retry_count) {
+    pthread_mutex_init(&g_mutex_send, NULL);
+    sem_init(&send_sem, 0, 0);
+    return 1;
+}
+#endif //USE_UDP

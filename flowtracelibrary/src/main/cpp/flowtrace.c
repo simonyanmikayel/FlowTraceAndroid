@@ -13,19 +13,24 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include "flowtrace.h"
 
 #define INI_FILE "flowtrace.ini"
 #define DATA_FOLDER "/data/data"
 #define SMAL_BUF_SIZE 63
-const char *TAG = "FLOWTRACE_JNI";
+extern pthread_mutex_t g_mutex_send;
+extern sem_t send_sem;;
+const char *TAG = "FLOW_TRACE";
 int initialized = 0;
 char app_name[MAX_APP_NAME_LEN + 1] = {0};
 int cb_app_name = 0;
 int app_pid = 0;
-char ip[SMAL_BUF_SIZE + 1] = { 0 };
-int port = 0;
+static char ip[SMAL_BUF_SIZE + 1] = { 0 };
+static int port = 0;
 static unsigned int NN = 0;
+static short retry_delay;
+static short retry_count = -1;
 
 static void get_app_path(char* name, int pid)
 {
@@ -108,6 +113,8 @@ static int read_config( char* path)
             p = val;  for ( ; *p; ++p) *p = tolower(*p);
             if (strstr(key, "ip")) strcpy(ip, val);
             if (strstr(key, "port")) port = atoi(val);
+            if (strstr(key, "retry_delay")) retry_delay = atoi(val);
+            if (strstr(key, "retry_count")) retry_count = atoi(val);
         }
         fclose(ini_file);
     }
@@ -127,12 +134,13 @@ static int init_config()
         sprintf(ini_path, "%s/%s/%s", DATA_FOLDER, app_name, INI_FILE);
         read_config(ini_path);
     }
-
+#ifndef _USE_ADB
     if(ip[0] == 0 || port == 0)
     {
         TRACE_ERR("Failed to read %s\n", INI_FILE);
         return 0;
     }
+#endif //USE_UDP
     return 1;
 }
 
@@ -181,6 +189,7 @@ void FlowTraceSendLog(const char* module_name, int cb_module_name, unsigned int 
                     char* trace, int call_line, unsigned int this_fn,
                     unsigned int call_site, short log_type, short flags)
 {
+#ifndef _USE_ADB
     struct timespec time_stamp;
     int len;
     NET_PACK pack;
@@ -237,6 +246,59 @@ void FlowTraceSendLog(const char* module_name, int cb_module_name, unsigned int 
     //dump_rec(rec);
     pack.info.data_len = rec->len = len;
     net_send_pack(&pack);
+#else
+    /**const char* module_name
+                    const char* fn_name
+                    char* trace
+
+
+     */
+    char log[ 2*MAX_LOG_LEN ];
+
+    if (cb_fn_name > MAX_FUNC_NAME_LEN)
+        cb_fn_name = MAX_FUNC_NAME_LEN;
+    if (cb_module_name > MAX_MODULE_NAME_LEN)
+        cb_module_name = MAX_MODULE_NAME_LEN;
+
+    this_fn -= -module_base;
+    call_site -= -module_base;
+
+    //If an output error is encountered, a negative value is returned.
+    //return value of size or more means that the output was truncated.
+    if (!cb_trace)
+        trace = "";
+    if (!cb_module_name)
+        module_name = "";
+    if (!cb_fn_name)
+        fn_name = "";
+    pthread_mutex_lock(&g_mutex_send);
+    int len = snprintf(log, sizeof(log),
+            "<~ %d %d %d %d %d %d %u %u %d %d %.*s %.*s %.*s ~>%s",
+            log_type, flags, ++NN, cb_app_name, cb_module_name,
+            cb_fn_name, this_fn, call_site, fn_line, call_line,
+            cb_app_name, app_name, cb_module_name, module_name, cb_fn_name, fn_name, trace);
+    if (len > 0) {
+        if (len >= sizeof(log)) {
+            len = (int)(sizeof(log) - 1);
+            log[len] = 0;
+        }
+#ifdef _CONTROL_SEND_COUNT
+        static int byte_per_msec = 100000;
+        //1 msec= 1000 mcrsec
+        unsigned int mcrsec = (len * 1000) / byte_per_msec;
+        if (mcrsec) {
+            //usleep(mcrsec);
+        }
+#endif //_CONTROL_SEND_COUNT
+
+        __android_log_write(ANDROID_LOG_DEBUG, TAG, log);
+        pthread_mutex_unlock(&g_mutex_send);
+    }
+
+
+
+
+#endif //_USE_ADB
 }
 
 static int send_trace(UDP_LOG_Severity severity, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, va_list args)
@@ -453,10 +515,15 @@ int FlowTraceInitialize()
         TRACE_INFO("already initialized")
         return 1;
     }
+
     ret = ret && init_config();
-    ret = ret && init_sender(ip, port);
+    ret = ret && init_sender(ip, port, retry_delay, retry_count);
+
     init_dalvik_hook();
-    initialized = (ret != 0);
+#ifdef _TEST_THREAD
+    startTest();
+#endif //_TEST_THREAD
+    initialized = 1;
     return ret;
 }
 //extern "C"

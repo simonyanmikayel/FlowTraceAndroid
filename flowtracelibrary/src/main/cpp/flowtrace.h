@@ -21,6 +21,9 @@
 #define LOG_FLAG_RUNNABLE_RUN 16
 
 //#define WITH_TRACE
+//#define _USE_ADB
+#define _CONTROL_SEND_COUNT
+//#define _TEST_THREAD
 
 #define TRACE_ERR(fmt, arg...)  { FlowTraceLogWrite(6, __FUNCTION__, __LINE__, fmt, ##arg); }
 #define TRACE_INFO(fmt, arg...) { FlowTraceLogWrite(4, __FUNCTION__, __LINE__, fmt, ##arg); }
@@ -33,6 +36,7 @@
 
 void FlowTraceLogWriteV(int severity, const char *fn_name, int call_line, const char *fmt, va_list args);
 void FlowTraceLogWrite(int severity, const char *fn_name, int call_line, const char *fmt, ...);
+void startTest();
 
 typedef enum {
     UDP_LOG_FATAL,
@@ -81,6 +85,8 @@ typedef struct
     int pack_nn;
     short retry_nn;
     short full;
+    short retry_delay;
+    short retry_count;
 } NET_PACK_INFO;
 
 typedef struct
@@ -98,7 +104,9 @@ void FlowTraceSendLog(const char* module_name, int cb_module_name, unsigned int 
 
 int FlowTraceSendTrace(UDP_LOG_Severity severity, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, ...)  __attribute__((used));
 void init_dalvik_hook();
-int init_sender(char* ip, int port);
+int init_sender(char* ip, int port, short retry_delay, short retry_count);
 void net_send_pack( NET_PACK* pack  );
 void dump_rec( LOG_REC* rec );
+
+
 #endif //FLOWTRACEANDROID_FLOWTRACE_H

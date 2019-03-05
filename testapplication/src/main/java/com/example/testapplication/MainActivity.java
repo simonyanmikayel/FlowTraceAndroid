@@ -17,6 +17,7 @@ import java.util.logging.Logger;
 
 public class MainActivity extends AppCompatActivity {
 
+    public static String TAG = "FlowTrace";
     public static Logger LOGGER  = Logger.getLogger(MainActivity.class.getName());
     int dummy;
     // Used to load the 'native-lib' library on application startup.
@@ -42,8 +43,10 @@ public class MainActivity extends AppCompatActivity {
                 doDummy_2();
                 doDummy();
                 LOGGER.log(Level.INFO, "Executing TransactionContactUseCase");
-                Log.d("TEST", "test Flowtrce");
-                Log.d("TEST", stringFromJNI());
+                Log.d(TAG, "test Flowtrce1");
+                Log.d(TAG, "rn\r\nr\nr\rrnrn\r\n\r\n[");
+                Log.d(TAG, "test Flowtrce2");
+                Log.d(TAG, stringFromJNI());
                 System.loadLibrary("flowtrace");
                 Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG).setAction("Action", null).show();
 
@@ -52,7 +55,7 @@ public class MainActivity extends AppCompatActivity {
 
         TextView tv = (TextView) findViewById(R.id.sample_text);
         tv.setText(stringFromJNI());
-        Log.d("TEST", "onCreate");
+        Log.d(TAG, "onCreate");
     }
 
     @Override
@@ -80,13 +83,13 @@ public class MainActivity extends AppCompatActivity {
     void doDummy()
     {
         dummy++;
-        Log.e("TEST e", "test error");
+        Log.e(TAG, "test error");
         Log.e(null, null, new Exception("exception thrown"));
         doDummy_2();
         mHandler.post(new Runnable() {
             @Override
             public void run() {
-                Log.d("TEST d", "In run");
+                Log.d(TAG, "In run");
             }
         });
     }
