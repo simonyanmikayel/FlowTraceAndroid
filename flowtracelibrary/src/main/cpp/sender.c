@@ -187,27 +187,31 @@ send_again:
         TRACE_ERR("Flow trace: sendto error: %s, %d (dest: %s:%d)\n", strerror(errno), errno, net_ip, net_port);
         stop_udp_trace();
     } else {
-        NET_PACK_INFO ack;
-        ssize_t cb;
-        int flags;
-        recv_again:
-        flags = 0; //(pack->info.retry_nn < max_retry) ? 0 : MSG_DONTWAIT;
-        cb = recvfrom(udpSock, &ack, sizeof(ack), flags, (struct sockaddr *) 0, 0);
-        if (cb != sizeof(ack)) {
-            TRACE("Flow trace: no ack received index=%d [%s, %d]\n", i, strerror(errno), errno);
-            if (pack->info.retry_nn < max_retry) {
-                pack->info.retry_nn++;
-                goto send_again;
+        if (max_retry > 0) {
+            NET_PACK_INFO ack;
+            ssize_t cb;
+            int flags;
+            recv_again:
+            flags = 0; //(pack->info.retry_nn < max_retry) ? 0 : MSG_DONTWAIT;
+            cb = recvfrom(udpSock, &ack, sizeof(ack), flags, (struct sockaddr *) 0, 0);
+            if (cb != sizeof(ack)) {
+                TRACE("Flow trace: no ack received index=%d [%s, %d]\n", i, strerror(errno), errno);
+                if (pack->info.retry_nn < max_retry) {
+                    pack->info.retry_nn++;
+                    goto send_again;
+                }
+            } else {
+                if (ack.pack_nn == pack->info.pack_nn) {
+                    connected = 1;
+                }
+                if (ack.pack_nn != pack->info.pack_nn || ack.retry_nn != pack->info.retry_nn) {
+                    TRACE("Flow trace: received old ack: index=%d pack:%d/%d retry:%d/%d\n", i, ack.pack_nn,
+                          packets[i].info.pack_nn, ack.retry_nn, packets[i].info.retry_nn);
+                    goto recv_again;
+                }
             }
         } else {
-            if (ack.pack_nn == pack->info.pack_nn) {
-                connected = 1;
-            }
-            if (ack.pack_nn != pack->info.pack_nn || ack.retry_nn != pack->info.retry_nn) {
-                TRACE("Flow trace: received old ack: index=%d pack:%d/%d retry:%d/%d\n", i, ack.pack_nn,
-                      packets[i].info.pack_nn, ack.retry_nn, packets[i].info.retry_nn);
-                goto recv_again;
-            }
+            connected = 1;
         }
     }
     return connected;
@@ -306,7 +310,7 @@ void net_send_pack(NET_PACK *pack) {
 
     ok = copy_to_cash_buf(rec);
     if ( !ok ) {
-        for (i = 0; i < 12 * max_retry; i++) {
+        for (i = 0; i < 12 * (max_retry+1); i++) {
             TRACE("Flow trace: try send from net_send_pack NN %d try %d\n", rec->nn, i);
             sendRes = udp_send_cashed_buf(__FUNCTION__);
             ok = copy_to_cash_buf(rec);
