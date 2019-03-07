@@ -107,13 +107,15 @@ static int init_udp_socket() {
 //    int sockfd, sendbuff = 1; // Set buffer size
 //    setsockopt(udpSock, SOL_SOCKET, SO_SNDBUF, &sendbuff, sizeof(sendbuff));
 
-    struct timeval tv;
-    tv.tv_sec = 0;
-    tv.tv_usec = retryDelay; //microseconds
-    if (setsockopt(udpSock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
-        TRACE_ERR("Flow trace: faile to set receive timeout: %s, %d\n", strerror(errno), errno);
-        stop_udp_trace();
-        return 0;
+    if (retryDelay) {
+        struct timeval tv;
+        tv.tv_sec = 0;
+        tv.tv_usec = retryDelay; //microseconds
+        if (setsockopt(udpSock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+            TRACE_ERR("Flow trace: faile to set receive timeout: %s, %d\n", strerror(errno), errno);
+            stop_udp_trace();
+            return 0;
+        }
     }
 
     send_sin.sin_family = AF_INET;
@@ -187,7 +189,7 @@ send_again:
         TRACE_ERR("Flow trace: sendto error: %s, %d (dest: %s:%d)\n", strerror(errno), errno, net_ip, net_port);
         stop_udp_trace();
     } else {
-        if (max_retry > 0) {
+        if (max_retry > 0 && retryDelay > 0) {
             NET_PACK_INFO ack;
             ssize_t cb;
             int flags;
@@ -195,7 +197,7 @@ send_again:
             flags = 0; //(pack->info.retry_nn < max_retry) ? 0 : MSG_DONTWAIT;
             cb = recvfrom(udpSock, &ack, sizeof(ack), flags, (struct sockaddr *) 0, 0);
             if (cb != sizeof(ack)) {
-                TRACE("Flow trace: no ack received index=%d [%s, %d]\n", i, strerror(errno), errno);
+                TRACE("Flow trace: no ack received [%s, %d]\n", strerror(errno), errno);
                 if (pack->info.retry_nn < max_retry) {
                     pack->info.retry_nn++;
                     goto send_again;
@@ -284,7 +286,7 @@ static void *udp_send_thread(void *arg) {
     iddlePack.info.data_len = 0;
 
     while (working) {
-        set_ts(&ts, connected ? 1000000000 : retryDelay); //1 sec
+        set_ts(&ts, 1000000000); //1 sec
         sem_timedwait(&send_sem, &ts);
         do {
             //TRACE("Flow trace: try send from udp_send_thread\n");
@@ -310,7 +312,7 @@ void net_send_pack(NET_PACK *pack) {
 
     ok = copy_to_cash_buf(rec);
     if ( !ok ) {
-        for (i = 0; i < 12 * (max_retry+1); i++) {
+        for (i = 0; i < 12 * max_retry + 1; i++) {
             TRACE("Flow trace: try send from net_send_pack NN %d try %d\n", rec->nn, i);
             sendRes = udp_send_cashed_buf(__FUNCTION__);
             ok = copy_to_cash_buf(rec);
@@ -336,8 +338,8 @@ void net_send_pack(NET_PACK *pack) {
 int init_sender(char *p_ip, int p_port, short retry_delay, short retry_count) {
     net_ip = strdup(p_ip);
     net_port = p_port;
-    if (retry_count > 0) {
-        retryDelay = retry_delay*1000; //confert milisecunds to microsecunds
+    if (retry_count >= 0) {
+        retryDelay = retry_delay*1000; //convert milisecunds to microsecunds
         max_retry = retry_count;
     }
     int ret = 0;
