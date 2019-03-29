@@ -20,20 +20,17 @@
 
 static void* dalvik_hook(struct dalvik_hook_t *h)
 {
-	if (h->debug_me)
-		TRACE_INFO("dalvik_hook: class %s\n", h->clname);
+	if (h->debug_me) TRACE_INFO("dalvik_hook: class %s\n", h->clname);
 	
 	void *target_cls = d.dvmFindLoadedClass_fnPtr(h->clname);
-	if (h->debug_me)
-		TRACE_INFO("class = 0x%x\n", target_cls);
+	if (h->debug_me) TRACE_INFO("class = 0x%x\n", target_cls);
 
 	// print class in logcat
 	if (h->dump && target_cls)
 		d.dvmDumpClass_fnPtr(target_cls, (void*)1);
 
 	if (!target_cls) {
-		if (h->debug_me)
-			TRACE_INFO("target_cls == 0\n");
+		if (h->debug_me) TRACE_INFO("target_cls == 0\n");
 		return (void*)0;
 	}
 
@@ -48,16 +45,16 @@ static void* dalvik_hook(struct dalvik_hook_t *h)
 		h->mid = (void*)h->method;
 	}
 
-	if (h->debug_me)
-		TRACE_INFO("%s(%s) = 0x%x\n", h->method_name, h->method_sig, h->method);
+	if (h->debug_me) TRACE_INFO("%s(%s) = 0x%x\n", h->method_name, h->method_sig, h->method);
 
 	if (h->method) {
 		h->insns = h->method->insns;
 
 		if (h->debug_me) {
-			TRACE_INFO("nativeFunc %x\n", h->method->nativeFunc);
-		
-			TRACE_INFO("insSize = 0x%x  registersSize = 0x%x  outsSize = 0x%x\n", h->method->insSize, h->method->registersSize, h->method->outsSize);
+            TRACE_INFO("nativeFunc %x\n", h->method->nativeFunc);
+
+            TRACE_INFO("insSize = 0x%x  registersSize = 0x%x  outsSize = 0x%x\n",
+                       h->method->insSize, h->method->registersSize, h->method->outsSize);
 		}
 
 		h->iss = h->method->insSize;
@@ -69,30 +66,27 @@ static void* dalvik_hook(struct dalvik_hook_t *h)
 		h->method->outsSize = h->n_oss;
 
 		if (h->debug_me) {
-			TRACE_INFO("shorty %s\n", h->method->shorty);
-			TRACE_INFO("name %s\n", h->method->name);
-			TRACE_INFO("arginfo %x\n", h->method->jniArgInfo);
+            TRACE_INFO("shorty %s\n", h->method->shorty);
+            TRACE_INFO("name %s\n", h->method->name);
+            TRACE_INFO("arginfo %x\n", h->method->jniArgInfo);
 		}
 		h->method->jniArgInfo = 0x80000000; // <--- also important
 		if (h->debug_me) {
-			TRACE_INFO("noref %c\n", h->method->noRef);
-			TRACE_INFO("access %x\n", h->method->a);
+            TRACE_INFO("noref %c\n", h->method->noRef);
+            TRACE_INFO("access %x\n", h->method->a);
 		}
 		h->access_flags = h->method->a;
 		h->method->a = h->method->a | h->af; // make method native
-		if (h->debug_me)
-			TRACE_INFO("access %x\n", h->method->a);
+		if (h->debug_me) TRACE_INFO("access %x\n", h->method->a);
 	
 		d.dvmUseJNIBridge_fnPtr(h->method, h->native_func);
 		
-		if (h->debug_me)
-			TRACE_INFO("patched %s to: 0x%x\n", h->method_name, h->native_func);
+		if (h->debug_me) TRACE_INFO("patched %s to: 0x%x\n", h->method_name, h->native_func);
 
 		return (void*)1;
 	}
 	else {
-		if (h->debug_me)
-			TRACE_INFO("could NOT patch %s\n", h->method_name);
+		if (h->debug_me) TRACE_INFO("could NOT patch %s\n", h->method_name);
 	}
 
 	return (void*)0;
@@ -120,8 +114,7 @@ int dalvik_hook_setup(struct dalvik_hook_t *h, char *clname, char *meth, char *s
 
 	res = dalvik_hook(h);
 
-	if (h->debug_me)
-		TRACE_INFO("[%s %s] cls = 0x%x mid = 0x%x\n", clname, meth, h->cls, h-> mid);
+	if (h->debug_me) TRACE_INFO("[%s %s] cls = 0x%x mid = 0x%x\n", clname, meth, h->cls, h->mid);
 
 	return 0 != res;
 }
@@ -182,8 +175,7 @@ int dalvik_resolve(struct dalvik_hook_t *h, char *clname, char *meth, char *sig,
 //			leave_critical_section(__FUNCTION__, __LINE__);
 	} while(0);
 
-	if (h->debug_me)
-		TRACE_INFO("[%s %s] cls = 0x%x mid = 0x%x\n", clname, meth, h->cls, h-> mid);
+	if (h->debug_me) TRACE_INFO("[%s %s] cls = 0x%x mid = 0x%x\n", clname, meth, h->cls, h->mid);
 
 	return h->mid != 0;
 }
@@ -195,16 +187,14 @@ int dalvik_prepare(struct dalvik_hook_t *h, JNIEnv *env)
 
 	if (h->resolvm) {
 		h->cls = (*env)->FindClass(env, h->clnamep);
-		if (h->debug_me)
-			TRACE_INFO("cls = 0x%x\n", h->cls);
+		if (h->debug_me) TRACE_INFO("cls = 0x%x\n", h->cls);
 		if (!h->cls)
 			return 0;
 		if (h->sm)
 			h->mid = (*env)->GetStaticMethodID(env, h->cls, h->method_name, h->method_sig);
 		else
 			h->mid = (*env)->GetMethodID(env, h->cls, h->method_name, h->method_sig);
-		if (h->debug_me)
-			TRACE_INFO("mid = 0x%x\n", h-> mid);
+		if (h->debug_me) TRACE_INFO("mid = 0x%x\n", h->mid);
 		if (!h->mid)
 			return 0;
 	}
@@ -230,6 +220,5 @@ void dalvik_postcall(struct dalvik_hook_t *h)
 
 	d.dvmUseJNIBridge_fnPtr(h->method, h->native_func);
 	
-	if (h->debug_me)
-		TRACE_INFO("patched BACK %s to: 0x%x\n", h->method_name, h->native_func);
+	if (h->debug_me) TRACE_INFO("patched BACK %s to: 0x%x\n", h->method_name, h->native_func);
 }

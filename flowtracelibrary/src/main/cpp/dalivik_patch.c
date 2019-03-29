@@ -17,29 +17,21 @@
 #include "corkscrew.h"
 #include "flowtrace.h"
 
-static const int VERBOSE = 2;
-static const int DEBUG = 3;
-static const int INFO = 4;
-static const int WARN = 5;
-static const int ERROR = 6;
-static const int EXCEPTION = 7;
-
 // https://android.googlesource.com/platform/libnativehelper/+/brillo-m7-dev/include/nativehelper/jni.h
 // You can get the method signatures from class files with javap with -s option: javap -classpath '/path/to/jre/lib/rt.jar' -s java.lang.Throwable
 
 static int priority2severity(int priority)
 {
     UDP_LOG_Severity severity;
-    if (priority == VERBOSE || priority == DEBUG)
-        severity = UDP_LOG_DEBUG;
-    else if (priority == INFO)
+
+    if (priority == ANDROID_LOG_INFO)
         severity = UDP_LOG_INFO;
-    else if (priority == WARN)
+    else if (priority == ANDROID_LOG_WARN)
         severity = UDP_LOG_WARNING;
-    else if (priority == ERROR || priority == EXCEPTION)
+    else if (priority == ANDROID_LOG_ERROR || priority == ANDROID_LOG_FATAL)
         severity = UDP_LOG_ERROR;
-    else
-        severity = UDP_LOG_FATAL;
+    else //if (priority == ANDROID_LOG_VERBOSE || priority == ANDROID_LOG_DEBUG;)
+        severity = UDP_LOG_DEBUG;
     return severity;
 }
 static void LogString(JNIEnv *env, int priority, char* fn_name, int call_line, jobject tag, jobject msg)
@@ -47,8 +39,6 @@ static void LogString(JNIEnv *env, int priority, char* fn_name, int call_line, j
 	const char *s_tag = 0;
 	const char *s_msg = 0;
     char msg_log[MAX_LOG_LEN];
-
-	UDP_LOG_Severity severity = priority2severity(priority);
 
 	if (tag) {
 		s_tag = (*env)->GetStringUTFChars(env, tag, 0);
@@ -61,8 +51,8 @@ static void LogString(JNIEnv *env, int priority, char* fn_name, int call_line, j
 
 	snprintf(msg_log, sizeof(msg_log) - 1, "%s: %s\n", s_tag ? s_tag : "", s_msg ? s_msg : "");
 	msg_log[sizeof(msg_log) - 1] = 0;
-    FlowTraceSendTrace(severity, LOG_FLAG_JAVA, fn_name, -1, 0, call_line, msg_log);
-	//TRACE_INFO(msg_log);
+//    TRACE_INFO("~~~ priority %d severity %d", priority, priority2severity(priority));
+    FlowTraceSendTrace(priority2severity(priority), LOG_FLAG_JAVA, fn_name, -1, 0, call_line, msg_log);
 
 //	backtrace_frame_t frames[256] = {0,};
 //	backtrace_symbol_t symbols[256] = {0,};
@@ -162,7 +152,7 @@ static void print_log(JNIEnv *env, int priority, jobject tag, jobject msg, jobje
     struct jmethod_t j_println_native;
     resolveStaticMetod(&j_println_native, "android/util/Log",  "println_native",  "(IILjava/lang/String;Ljava/lang/String;)I", env);
     (*env)->CallStaticIntMethodA(env, j_println_native.cls , j_println_native.mid, args);
-    LogString(env, tr ? UDP_LOG_ERROR : priority2severity(priority), fn_name, call_line, tag, msg);
+    LogString(env, priority, fn_name, call_line, tag, msg);
 
 //    dalvik_resolve(&dh_log_getStackTraceString, "Landroid/util/Log;",  "getStackTraceString",  "(Ljava/lang/Throwable;)Ljava/lang/String;", 0);
     struct jmethod_t j_getStackTraceString;
@@ -174,7 +164,7 @@ static void print_log(JNIEnv *env, int priority, jobject tag, jobject msg, jobje
             args[0].i = 0;
             args[3].l = res;
             (*env)->CallStaticIntMethodA(env, j_println_native.cls , j_println_native.mid, args);
-            LogString(env, tr ? UDP_LOG_ERROR : priority2severity(priority), fn_name, call_line, tag, res);
+            LogString(env, priority, fn_name, call_line, tag, res);
         }
     }
 }
@@ -182,67 +172,67 @@ static void print_log(JNIEnv *env, int priority, jobject tag, jobject msg, jobje
 static struct dalvik_hook_t dh_log_d1;
 static void* hook_log_d1(JNIEnv *env, jclass cls, jobject tag, jobject msg)
 {
-	print_log(env, DEBUG, tag, msg, 0);
+	print_log(env, ANDROID_LOG_DEBUG, tag, msg, 0);
 	return (void *)1;
 }
 
 static struct dalvik_hook_t dh_log_d2;
 static void* hook_log_d2(JNIEnv *env, jclass cls, jobject tag, jobject msg, jobject tr)
 {
-	print_log(env, DEBUG, tag, msg, tr);
+	print_log(env, ANDROID_LOG_DEBUG, tag, msg, tr);
 	return (void *)1;
 }
 
 static struct dalvik_hook_t dh_log_i1;
 static void* hook_log_i1(JNIEnv *env, jclass cls, jobject tag, jobject msg)
 {
-	print_log(env, INFO, tag, msg, 0);
+	print_log(env, ANDROID_LOG_INFO, tag, msg, 0);
 	return (void *)1;
 }
 static struct dalvik_hook_t dh_log_i2;
 static void* hook_log_i2(JNIEnv *env, jclass cls, jobject tag, jobject msg, jobject tr)
 {
-	print_log(env, INFO, tag, msg, tr);
+	print_log(env, ANDROID_LOG_INFO, tag, msg, tr);
 	return (void *)1;
 }
 
 static struct dalvik_hook_t dh_log_v1;
 static void* hook_log_v1(JNIEnv *env, jclass cls, jobject tag, jobject msg)
 {
-	print_log(env, VERBOSE, tag, msg, 0);
+	print_log(env, ANDROID_LOG_VERBOSE, tag, msg, 0);
 	return (void *)1;
 }
 static struct dalvik_hook_t dh_log_v2;
 static void* hook_log_v2(JNIEnv *env, jclass cls, jobject tag, jobject msg, jobject tr)
 {
-	print_log(env, VERBOSE, tag, msg, tr);
+	print_log(env, ANDROID_LOG_VERBOSE, tag, msg, tr);
 	return (void *)1;
 }
 
 static struct dalvik_hook_t dh_log_w1;
 static void* hook_log_w1(JNIEnv *env, jclass cls, jobject tag, jobject msg)
 {
-	print_log(env, WARN, tag, msg, 0);
+	print_log(env, ANDROID_LOG_WARN, tag, msg, 0);
 	return (void *)1;
 }
 static struct dalvik_hook_t dh_log_w2;
 static void* hook_log_w2(JNIEnv *env, jclass cls, jobject tag, jobject msg, jobject tr)
 {
-	print_log(env, WARN, tag, msg, tr);
+	print_log(env, ANDROID_LOG_WARN, tag, msg, tr);
 	return (void *)1;
 }
 
 static struct dalvik_hook_t dh_log_e1;
 static void* hook_log_e1(JNIEnv *env, jclass cls, jobject tag, jobject msg)
 {
-    print_log(env, ERROR, tag, msg, 0);
+    print_log(env, ANDROID_LOG_ERROR, tag, msg, 0);
     return (void *)1;
 }
 
 static struct dalvik_hook_t dh_log_e2;
 static void* hook_log_e2(JNIEnv *env, jclass cls, jobject tag, jobject msg, jobject tr)
 {
-	print_log(env, ERROR, tag, msg, tr);
+	print_log(env, ANDROID_LOG_ERROR, tag, msg, tr);
 	return (void *)1;
 }
 

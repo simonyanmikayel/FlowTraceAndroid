@@ -39,7 +39,7 @@ int init_corkscrew( void )
 	}
 
 	corkscrew_initialised = (_get_backtrace_symbols != 0) && (_unwind_backtrace != 0);
-	TRACE_INFO("corkscrew_initialised =  %d\n", corkscrew_initialised);
+    TRACE_INFO("corkscrew_initialised =  %d\n", corkscrew_initialised);
 	return 1;
 }
 
@@ -49,7 +49,7 @@ unsigned int get_backtrace(backtrace_frame_t* frames, backtrace_symbol_t* symbol
 		return 0;
 
 	unsigned int frame_count = _unwind_backtrace(frames, 2, stack_size);
-	TRACE_INFO("get_backtrace: frame_count =  %d\n", frame_count);
+    TRACE_INFO("get_backtrace: frame_count =  %d\n", frame_count);
 
 	_get_backtrace_symbols(frames, frame_count, symbols);
 	unsigned int i;
@@ -63,7 +63,7 @@ unsigned int get_backtrace(backtrace_frame_t* frames, backtrace_symbol_t* symbol
 		const char *file = symbols[i].map_name;
 		if (!file)
 			file = "-";
-		TRACE_INFO("get_backtrace: %d file: %s, method: %s\n", i, file, method);
+        TRACE_INFO("get_backtrace: %d file: %s, method: %s\n", i, file, method);
     }
 
 

@@ -45,8 +45,7 @@ void dalvik_dump_class(struct dexstuff_t *dex, char *clname)
 static void* mydlsym(void *hand, const char *name)
 {
     void* ret = dlsym(hand, name);
-    if (!ret)
-        TRACE_ERR("addr of %s = %p\n", name, ret);
+    if (!ret) TRACE_ERR("addr of %s = %p\n", name, ret);
     return ret;
 }
 
