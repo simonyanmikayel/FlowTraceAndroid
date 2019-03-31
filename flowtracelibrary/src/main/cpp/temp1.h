@@ -1,7 +1,4 @@
-//
-// Created by misha on 9/23/2018.
-//
-
+#if 1
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
@@ -48,7 +45,7 @@ void startTest() {
 
 static int sendIndex = 0;
 static int copyIndex = 0;
-static const int maxBufIndex = 1000;
+static const short maxBufIndex = 1000;
 NET_PACK packets[maxBufIndex];
 static NET_PACK pingPack;
 
@@ -63,7 +60,7 @@ static struct sockaddr_in send_sin;
 static int udpSock = -1;
 static int retryDelay = 20*1000;
 static int max_retry = 5;
-static int connected = 0;
+static int connected = 1;
 unsigned int REC_NN = 0;
 unsigned int PACK_NN = 0;
 
@@ -148,7 +145,7 @@ static int copy_to_cash_buf(LOG_REC *rec) {
             break;
         } else {
             if (!packets[i].info.full)
-                packets[i].info.full = 1; //if it is set in udp_send_pack then keep it
+                packets[i].info.full = -1; //if it is set in udp_send_pack then keep it
             //TRACE("Flow trace: full buf %d\n", i);
         }
         i = nextIndex(i);
@@ -165,24 +162,23 @@ static int copy_to_cash_buf(LOG_REC *rec) {
     return idx >= 0;
 }
 
-static int udp_send_pack(NET_PACK* pack) {
+static int udp_send_pack(NET_PACK* pack, int ping) {
 
-    connected = 0;
     if (udpSock < 0) {
         return 0;
     }
 
-    pack->info.pack_nn = ++PACK_NN;
     pack->info.retry_nn = 0;
     pack->info.retry_delay = retryDelay;
     pack->info.retry_count = max_retry;
 
-send_again:
+    send_again:
     if (sendto(udpSock, pack, pack->info.data_len + sizeof(NET_PACK_INFO), 0,
                (const struct sockaddr *)&send_sin, sizeof(send_sin)) < 0) {
         TRACE_ERR("Flow trace: sendto error: %s, %d (dest: %s:%d)\n", strerror(errno), errno,
                   net_ip, net_port);
         stop_udp_trace();
+        connected = 0;
     } else {
         if (max_retry > 0 && retryDelay > 0) {
             NET_PACK_INFO ack;
@@ -192,12 +188,17 @@ send_again:
             flags = 0; //(pack->info.retry_nn < max_retry) ? 0 : MSG_DONTWAIT;
             cb = recvfrom(udpSock, &ack, sizeof(ack), flags, (struct sockaddr *) 0, 0);
             if (cb != sizeof(ack)) {
-                TRACE("Flow trace: no ack received [%s, %d]\n", strerror(errno), errno);
+                TRACE("Flow trace: no ack received [%s, %d] pack:%d retry:%d\n", strerror(errno), errno, pack->info.pack_nn,  pack->info.retry_nn);
                 if (pack->info.retry_nn < max_retry) {
                     pack->info.retry_nn++;
                     goto send_again;
+                } else {
+                    connected = 0;
                 }
             } else {
+                if (ack.pack_nn < 0) {
+                    ack.pack_nn = -ack.pack_nn;
+                }
                 if (ack.pack_nn == pack->info.pack_nn) {
                     connected = 1;
                 }
@@ -221,25 +222,23 @@ send_again:
 // return int with bits set 0-could not lock, 1-sent iddle package, 3-sent succeed
 static int udp_send_cashed_buf(const char* from) {
     int ret = 0;
-    int pinging = 0;
     if (0 == trylock(&g_mutex_send)) {
-        const int i = sendIndex;
         //TRACE("Flow trace: Locked buf %d [from %s connected=%d data_len=%d]\n", i, from, connected, packets[i].info.data_len);
-        if ( !connected || packets[i].info.data_len != 0) {
+        if ( !connected || packets[sendIndex].info.data_len != 0) {
             lock(&g_mutex_copy);
-            int pinging =  (packets[i].info.data_len == 0);
+            int pinging =  (packets[sendIndex].info.data_len == 0);
             if (!pinging) {
-                packets[i].info.full = i + 1; //set as full. We put (i+1) for debugging on rececer side
-                if (i == copyIndex)
-                    copyIndex = nextIndex(i);;
+                if (packets[sendIndex].info.full <= 0) {
+                    packets[sendIndex].info.pack_nn = ++PACK_NN;
+                    packets[sendIndex].info.full = sendIndex + 1; //set as full. We put (i+1) for debugging on rececer side
+                }
             } else {
                 ret |= SEND_PING;
             }
             unlock(&g_mutex_copy);
 
             //TRACE("Flow trace: sending buf %d [from %s connected=%d pinging=%d data_len=%d]\n", i, from, connected, pinging, packets[i].info.data_len);
-
-            if (udp_send_pack(pinging ? &pingPack : &packets[i])) {
+            if (udp_send_pack((pinging ? &pingPack : &packets[sendIndex]), pinging)) {
                 ret |= SEND_SUCSSEED;
             }
 
@@ -247,19 +246,21 @@ static int udp_send_cashed_buf(const char* from) {
                 lock(&g_mutex_copy);
                 if (connected) {
                     //TRACE("Flow trace: sent %d [from %s connected=%d data_len=%d]\n", i, from, connected, packets[i].info.data_len);
-                    packets[i].info.data_len = 0;
-                    packets[i].info.full = 0;
-                    sendIndex = nextIndex(i);
+                    packets[sendIndex].info.data_len = 0;
+                    packets[sendIndex].info.full = 0;
+                    sendIndex = nextIndex(sendIndex);
+                    if (sendIndex == copyIndex)
+                        copyIndex = nextIndex(sendIndex);;
                 } else {
-                    TRACE("Flow trace: could not send. Reseting buffers [from %s connected=%d data_len=%d]\n",
-                          from, connected, packets[i].info.data_len);
-                    //memset(packets, 0, sizeof(packets));
-                    for (int k = 0; k < maxBufIndex; k++) {
-                        packets[k].info.data_len = 0;
-                        packets[k].info.full = 0;
-                    }
-                    sendIndex = copyIndex = 0;
-                    //stop_udp_trace();
+                    TRACE_TEMP("Flow trace: could not send. Reseting buffers [from %s pack:%d retry:%d buf_nn: %d]\n",
+                               from, packets[sendIndex].info.pack_nn, packets[sendIndex].info.retry_nn, sendIndex);
+//                    //memset(packets, 0, sizeof(packets));
+//                    for (int k = 0; k < maxBufIndex; k++) {
+//                        packets[k].info.data_len = 0;
+//                        packets[k].info.full = 0;
+//                    }
+//                    sendIndex = copyIndex = 0;
+//                    //stop_udp_trace();
                 }
                 unlock(&g_mutex_copy);
             }
@@ -490,3 +491,4 @@ int init_sender(char *p_ip, int p_port, short retry_delay, short retry_count) {
     return 1;
 }
 #endif //USE_UDP
+endif //0

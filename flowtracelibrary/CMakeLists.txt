@@ -22,7 +22,7 @@ add_library( # Sets the name of the library.
              src/main/cpp/dalivik_patch.c;
              src/main/cpp/corkscrew.c;
              src/main/cpp/dalvik_hook.c;
-             src/main/cpp/sender.c
+        src/main/cpp/sender_udp.c
               )
 
 # Searches for a specified prebuilt library and stores the path as a

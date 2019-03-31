@@ -89,7 +89,7 @@ public class MainActivity extends AppCompatActivity {
         mHandler.post(new Runnable() {
             @Override
             public void run() {
-                Log.d(TAG, "In run");
+                Log.d(TAG, "In handler");
             }
         });
     }

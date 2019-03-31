@@ -28,6 +28,7 @@
 
 #define TRACE_ERR(fmt, arg...)  { AndroidLogWrite(6, __FUNCTION__, __LINE__, fmt, ##arg); }
 #define TRACE_INFO(fmt, arg...) { AndroidLogWrite(4, __FUNCTION__, __LINE__, fmt, ##arg); }
+#define TRACE_TEMP(fmt, arg...) { AndroidLogWrite(4, __FUNCTION__, __LINE__, fmt, ##arg); }
 
 #ifdef WITH_TRACE
     #define TRACE(fmt, arg...) { AndroidLogWrite(4, __FUNCTION__, __LINE__, fmt, ##arg); }
@@ -63,7 +64,7 @@ typedef struct
     int len;
     unsigned char log_type;
     unsigned char log_flags;
-    unsigned char color;
+    unsigned char unused;
     unsigned char severity;
     unsigned int nn;
     short cb_app_name;
@@ -85,19 +86,16 @@ typedef struct
 {
     int data_len;
     int pack_nn;
-    short retry_nn;
-    short full;
-    short retry_delay;
-    short retry_count;
+    int retry_nn;
+    int buff_nn;
+    int retry_delay;
+    int retry_count;
 } NET_PACK_INFO;
 
 typedef struct
 {
     NET_PACK_INFO info;
-    union {
-        LOG_REC rec;
-        char data[MAX_NET_BUF + 16];
-    };
+    char data[MAX_NET_BUF + 16];
 } NET_PACK;
 
 #pragma pack(pop)
@@ -105,18 +103,26 @@ typedef struct
 void SendLog(const char* module_name, int cb_module_name, unsigned int  module_base,
              const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
              char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
-             unsigned char log_type, unsigned char flags, unsigned char color, unsigned char severity)  __attribute__((used));
+             unsigned char log_type, unsigned char flags, unsigned char severity)  __attribute__((used));
 
 int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_base,
         UDP_LOG_Severity severity, int flags,
         const char* fn_name, int cb_fn_name, int fn_line,
         int call_line, const char *fmt, va_list args)  __attribute__((used));
 
+void HandleLog(const char* module_name, int cb_module_name, unsigned int  module_base,
+             const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
+             char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
+             unsigned char log_type, unsigned char flags, unsigned char severity)  __attribute__((used));
+
 int FlowTraceSendTrace(UDP_LOG_Severity severity, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, ...)  __attribute__((used));
 void init_dalvik_hook();
 int init_sender(char* ip, int port, short retry_delay, short retry_count);
 void net_send( LOG_REC* rec );
 void dump_rec( LOG_REC* rec );
-
+void loc_send();
+void unloc_send();
+void AndroidTrace(const char* trace, UDP_LOG_Severity severity);
+#define TRACE_OFFSET(rec) (rec->cb_app_name + rec->cb_module_name + rec->cb_fn_name)
 
 #endif //FLOWTRACEANDROID_FLOWTRACE_H
