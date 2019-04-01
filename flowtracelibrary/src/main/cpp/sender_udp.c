@@ -42,7 +42,7 @@ static struct timespec time_stamp;
 static void* test_send_thread (void *arg) {
     int i;
     TRACE("Flow trace: test_send_thread\n");
-    for(i = 0; i < 1000000; i++) {
+    for(i = 0; i < 10000000; i++) {
         FlowTraceSendTrace(6, LOG_FLAG_JAVA, __FILE__, -1, 0, __LINE__, "test %d\n", i);
         //usleep(3000); //1000000microsecond =1sec
     }
@@ -93,13 +93,15 @@ static inline void purgePack(NET_PACK* pack) {
     pack->info.data_len = 0;
 }
 
-static inline void moveAddPack() {
-    addIndex = nextIndex(addIndex);
-    purgePack(curAddPack());
-}
-
 static inline void moveSendPack() {
     sendIndex = nextIndex(sendIndex);
+}
+
+static inline void moveAddPack() {
+    if (nextAddPack() == curSendPack())
+        moveSendPack();
+    addIndex = nextIndex(addIndex);
+    purgePack(curAddPack());
 }
 
 //static inline int prevIndex(int i) {
@@ -224,15 +226,16 @@ static void send_cash() {
 
 static void *send_thread(void *arg) {
     TRACE("Flow trace: started send thread\n");
-    static struct timespec ts;
-    int iddle_timeout = 1000000000; //1 sec
-    int ping_timeout =  1000000000; //100 msec
+//    static struct timespec ts;
+//    int iddle_timeout = 1000000000; //1 sec
+//    int ping_timeout =  1000000000; //100 msec
     while (working) {
-        clock_gettime(CLOCK_REALTIME, &ts);
-        ts.tv_nsec += noRespoce ? ping_timeout : iddle_timeout;
-        ts.tv_sec += ts.tv_nsec / 1000000000;
-        ts.tv_nsec %= 1000000000;
-        sem_timedwait(&send_sem, &ts);
+//        clock_gettime(CLOCK_REALTIME, &ts);
+//        ts.tv_nsec += noRespoce ? ping_timeout : iddle_timeout;
+//        ts.tv_sec += ts.tv_nsec / 1000000000;
+//        ts.tv_nsec %= 1000000000;
+//        sem_timedwait(&send_sem, &ts);
+        sem_wait(&send_sem);
 
         if (working) {
             loc_send();
