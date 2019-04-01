@@ -505,3 +505,23 @@ public static String toString(byte[] bcd, int exponent) {
 
     return sb.toString();
 }
+
+void test(const char *sz, int e) {
+    int cb = strlen(sz);
+    int dp = cb - e;
+
+    if (dp <= 0) {
+        out('0');
+        out('.');
+        for (int i = dp; i < 0; i++) {
+            out('0');
+        }
+    }
+    for (int i = 0; i < cb; i++) {
+        if (i == dp && i !=0 )
+            out('.');
+        out(sz[i]);
+    }
+
+    std::cout << "\n";
+}
