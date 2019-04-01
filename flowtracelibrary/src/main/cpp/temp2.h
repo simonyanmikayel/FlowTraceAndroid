@@ -493,11 +493,11 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
         }
         trace[cb] = 0;
 
-        int jj, kk = 0;
-        static char hex_trace[ 10*MAX_LOG_LEN + EXTRA_BUF];
-        for(jj = 0; jj < cb; jj++) {
-            kk += sprintf(hex_trace+kk, "%2.2X ", (unsigned char)trace[jj]);
-        }
+//        int jj, kk = 0;
+//        static char hex_trace[ 10*MAX_LOG_LEN + EXTRA_BUF];
+//        for(jj = 0; jj < cb; jj++) {
+//            kk += sprintf(hex_trace+kk, "%2.2X ", (unsigned char)trace[jj]);
+//        }
 //        TRACE_INFO("~~~ > %s", hex_trace);
 //        TRACE_INFO("~~~ > %s", trace);
 

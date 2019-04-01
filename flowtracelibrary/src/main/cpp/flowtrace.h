@@ -20,11 +20,13 @@
 #define LOG_FLAG_RUNNABLE_INIT 8
 #define LOG_FLAG_RUNNABLE_RUN 16
 #define LOG_FLAG_OUTER_LOG 32
+#define LOG_FLAG_COLOR_PARCED 64
 
 //#define WITH_TRACE
 //#define _USE_ADB
 #define _CONTROL_SEND_COUNT
 //#define _TEST_THREAD
+#define PARCE_COLOR
 
 #define TRACE_ERR(fmt, arg...)  { AndroidLogWrite(6, __FUNCTION__, __LINE__, fmt, ##arg); }
 #define TRACE_INFO(fmt, arg...) { AndroidLogWrite(4, __FUNCTION__, __LINE__, fmt, ##arg); }
@@ -64,7 +66,7 @@ typedef struct
     int len;
     unsigned char log_type;
     unsigned char log_flags;
-    unsigned char unused;
+    unsigned char color;
     unsigned char severity;
     unsigned int nn;
     short cb_app_name;
@@ -103,7 +105,7 @@ typedef struct
 void SendLog(const char* module_name, int cb_module_name, unsigned int  module_base,
              const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
              char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
-             unsigned char log_type, unsigned char flags, unsigned char severity)  __attribute__((used));
+             unsigned char log_type, unsigned char flags, unsigned char color, unsigned char severity)  __attribute__((used));
 
 int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_base,
         UDP_LOG_Severity severity, int flags,
@@ -113,7 +115,7 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
 void HandleLog(const char* module_name, int cb_module_name, unsigned int  module_base,
              const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
              char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
-             unsigned char log_type, unsigned char flags, unsigned char severity)  __attribute__((used));
+             unsigned char log_type, unsigned char flags, unsigned char color, unsigned char severity)  __attribute__((used));
 
 int FlowTraceSendTrace(UDP_LOG_Severity severity, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, ...)  __attribute__((used));
 void init_dalvik_hook();

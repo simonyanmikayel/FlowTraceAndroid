@@ -274,7 +274,7 @@ static void add_trace(LOG_REC* rec, char* trace, int cb_trace, unsigned char fla
 static LOG_REC* add_rec(const char* module_name, int cb_module_name, unsigned int  module_base,
                   const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
                   char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
-                  unsigned char log_type, unsigned char flags, unsigned char severity) {
+                  unsigned char log_type, unsigned char flags, unsigned char color, unsigned char severity) {
     LOG_REC* rec = 0;
     int rec_len = sizeof(LOG_REC) + cb_app_name + cb_module_name + cb_fn_name + cb_trace;
     if (last_rec) {
@@ -289,6 +289,7 @@ static LOG_REC* add_rec(const char* module_name, int cb_module_name, unsigned in
     rec->log_type = log_type;
     rec->log_flags = flags;
     rec->severity = severity;
+    rec->color = color;
     rec->tid = tid;
     rec->pid = app_pid;
 
@@ -322,12 +323,12 @@ static LOG_REC* add_rec(const char* module_name, int cb_module_name, unsigned in
 
     return rec;
 }
-#define ADD_REC() add_rec(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, severity)
+#define ADD_REC() add_rec(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, severity)
 
 static LOG_REC* add_log(const char* module_name, int cb_module_name, unsigned int  module_base,
               const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
               char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
-              unsigned char log_type, unsigned char flags, unsigned char severity)
+              unsigned char log_type, unsigned char flags, unsigned char color, unsigned char severity)
 {
     LOG_REC* rec = 0;
     tid = (int)pthread_self();
@@ -355,13 +356,14 @@ static LOG_REC* add_log(const char* module_name, int cb_module_name, unsigned in
 
     return rec;
 }
-#define ADD_LOG() add_log(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, severity)
+#define ADD_LOG() add_log(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, severity)
 
 void HandleLog(const char* module_name, int cb_module_name, unsigned int  module_base,
              const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
              char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
-             unsigned char log_type, unsigned char flags, unsigned char severity)
+             unsigned char log_type, unsigned char flags, unsigned char color, unsigned char severity)
 {
+    loc_send();
     if (!ADD_LOG()) {
         //curAddPack() is full, add to next
         if (nextAddPack()->info.data_len != 0 && !noRespoce) {
@@ -370,6 +372,7 @@ void HandleLog(const char* module_name, int cb_module_name, unsigned int  module
         moveAddPack();
         ADD_LOG();
     }
+    unloc_send();
 }
 
 int init_sender(char *p_ip, int p_port, short retry_delay, short retry_count) {

@@ -282,6 +282,7 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogFlow(
                      callID, //call_site - caller
                      (short)log_type,
                      log_flags|LOG_FLAG_JAVA,
+                     0,
                      UDP_LOG_COMMON
     );
 
@@ -343,38 +344,118 @@ void AndroidTrace(const char* trace, UDP_LOG_Severity severity) {
 /////////////////////////////////////////////////////////////////////
 // common part
 /////////////////////////////////////////////////////////////////////
+#ifdef PARCE_COLOR
+static inline int parceCollor(char* pBuf, int *iSkip)
+{
+    int color = 0;
+    if (isdigit(pBuf[*iSkip]))
+    {
+        color = pBuf[*iSkip] - '0';
+        (*iSkip)++;
+        if (isdigit(pBuf[*iSkip]))
+        {
+            color = (10 * color) + (pBuf[*iSkip] - '0');
+            (*iSkip)++;
+        }
+        if (!((color >= 30 && color <= 37) || (color >= 40 && color <= 47)))
+            color = 0;
+    }
+    return color;
+}
+#endif // PARCE_COLOR
+
 int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_base, UDP_LOG_Severity severity, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, va_list args)
 {
-    int cb_trace;
-    va_list arg_copy;
     char trace[ MAX_LOG_LEN + EXTRA_BUF];
+    int cb_trace, i, send_pos = 0;
+    int trace_color = 0;
+    int old_color = 0;
+    va_list arg_copy;
 
     va_copy(arg_copy, args);
 
-    //Upon successful return, these functions return the number of characters printed (excluding the null byte used to end output to strings).
-    //return value of MAX_LOG_LEN or more means that the output was truncated
-    cb_trace = vsnprintf(trace, MAX_LOG_LEN, fmt, arg_copy);
-    if ( cb_trace >= MAX_LOG_LEN )
-    {
-        cb_trace = MAX_LOG_LEN -1;
-        trace[cb_trace - 1] = '.';
-        trace[cb_trace - 2] = '.';
-        trace[cb_trace - 3] = '.';
+    if (!initialized) {
+        cb_trace = valist_printf(fmt, arg_copy);
     }
-    if ((flags & LOG_FLAG_NEW_LINE) && (trace[cb_trace - 1] != '\n')) {
-        cb_trace++;
-        trace[cb_trace - 1] = '\n';
-    }
-    trace[cb_trace] = 0;
+    else {
+        //Upon successful return, these functions return the number of characters printed (excluding the null byte used to end output to strings).
+        //return value of MAX_LOG_LEN or more means that the output was truncated
+        cb_trace = vsnprintf(trace, MAX_LOG_LEN, fmt, arg_copy);
+        if ( cb_trace >= MAX_LOG_LEN )
+        {
+            cb_trace = MAX_LOG_LEN -1;
+            trace[cb_trace - 1] = '.';
+            trace[cb_trace - 2] = '.';
+            trace[cb_trace - 3] = '.';
+        }
+        if ((flags & LOG_FLAG_NEW_LINE) && (trace[cb_trace - 1] != '\n')) {
+            cb_trace++;
+            trace[cb_trace - 1] = '\n';
+        }
+        trace[cb_trace] = 0;
 
+#ifdef PARCE_COLOR
+        // find colors and new lines
+        flags |= LOG_FLAG_COLOR_PARCED;
+        for (i = 0; i < cb_trace; i++)
+        {
+            if (trace[i] == '\n' || trace[i] == '\r')
+            {
+                trace[i] = '\n';
+                if (i > send_pos) {
+                    old_color = trace_color;
+                    HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, i - send_pos + 1, trace + send_pos, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
+                }
+                while (trace[i + 1] == '\n' || trace[i + 1] == '\r')
+                    i++;
+                send_pos = i + 1;
+            }
+            if (trace[i] == '\033' && trace[i + 1] == '[')
+            {
+                int j = i;
+                int c1 = 0, c2 = 0, c3 = 0;
+                trace[i] = '['; //for testing
+
+                i += 2;
+                c1 = parceCollor(trace + i, &i);
+                if (trace[i] == ';')
+                {
+                    i++;
+                    c2 = parceCollor(trace + i, &i);
+                }
+                if (trace[i] == ';')
+                {
+                    i++;
+                    c3 = parceCollor(trace + i, &i);
+                }
+                if (trace[i] == 'm')
+                {
+                    if (!trace_color) trace_color = c1;
+                    if (!trace_color) trace_color = c2;
+                    if (!trace_color) trace_color = c3;
+                }
+                if (j > send_pos) {
+                    old_color = trace_color;
+                    HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, j - send_pos, trace + send_pos, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
+                }
+                send_pos = i + 1;
+            }
+        }
+        if (i > send_pos)
+        {
+            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, i - send_pos, trace + send_pos, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
+        }
+        else if (old_color != trace_color) {
+            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, i - send_pos, trace + send_pos, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
+        }
+#else // PARCE_COLOR
+        if (cb_trace)
+        {
+            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, 0, 0, LOG_INFO_TRACE, 0, flags, severity);
+        }
+#endif // PARCE_COLOR
+    }
     va_end(arg_copy);
-
-    if (initialized && cb_trace)
-    {
-        loc_send();
-        HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, 0, 0, LOG_INFO_TRACE, flags, severity);
-        unloc_send();
-    }
 
     return cb_trace;
 }
@@ -382,13 +463,11 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
 void SendLog(const char* module_name, int cb_module_name, unsigned int  module_base,
              const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
              char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
-             unsigned char log_type, unsigned char flags, unsigned char severity)
+             unsigned char log_type, unsigned char flags, unsigned char color, unsigned char severity)
 {
     if (initialized)
     {
-        loc_send();
-        HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, severity);
-        unloc_send();
+        HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, severity);
     }
 }
 

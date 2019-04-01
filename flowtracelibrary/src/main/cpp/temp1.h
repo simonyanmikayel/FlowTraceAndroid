@@ -492,3 +492,16 @@ int init_sender(char *p_ip, int p_port, short retry_delay, short retry_count) {
 }
 #endif //USE_UDP
 endif //0
+
+public static String toString(byte[] bcd, int exponent) {
+
+    StringBuffer sb = new StringBuffer();
+
+    for (int i = 0; i < bcd.length; i++) {
+        if (i == bcd.length - exponent)
+            sb.append('.');
+        sb.append(toString(bcd[i]));
+    }
+
+    return sb.toString();
+}
