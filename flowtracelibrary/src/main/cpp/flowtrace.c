@@ -345,17 +345,17 @@ void AndroidTrace(const char* trace, UDP_LOG_Severity severity) {
 // common part
 /////////////////////////////////////////////////////////////////////
 #ifdef PARCE_COLOR
-static inline int parceCollor(char* pBuf, int *iSkip)
+static inline int parceCollor(char** c)
 {
     int color = 0;
-    if (isdigit(pBuf[*iSkip]))
+    if (isdigit(**c))
     {
-        color = pBuf[*iSkip] - '0';
-        (*iSkip)++;
-        if (isdigit(pBuf[*iSkip]))
+        color = (**c) - '0';
+        (*c)++;
+        if (isdigit(**c))
         {
-            color = (10 * color) + (pBuf[*iSkip] - '0');
-            (*iSkip)++;
+            color = (10 * color) + ((**c) - '0');
+            (*c)++;
         }
         if (!((color >= 30 && color <= 37) || (color >= 40 && color <= 47)))
             color = 0;
@@ -395,58 +395,51 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
         trace[cb_trace] = 0;
 
 #ifdef PARCE_COLOR
-        // find colors and new lines
+        char *start = trace;
+        char *end = trace;
         flags |= LOG_FLAG_COLOR_PARCED;
-        for (i = 0; i < cb_trace; i++)
-        {
-            if (trace[i] == '\n' || trace[i] == '\r')
-            {
-                trace[i] = '\n';
-                if (i > send_pos) {
-                    old_color = trace_color;
-                    HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, i - send_pos + 1, trace + send_pos, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
-                }
-                while (trace[i + 1] == '\n' || trace[i + 1] == '\r')
-                    i++;
-                send_pos = i + 1;
+        for (; *end; end++) {
+            if (*end == '\n' || *end == '\r') {
+                old_color = trace_color;
+                HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, end - start + 1, start, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
+                while (*end == '\n' || *end == '\r')
+                    end++;
+                start = end;
             }
-            if (trace[i] == '\033' && trace[i + 1] == '[')
-            {
-                int j = i;
+            else if (*end == '\033' && *(end + 1) == '[') {
                 int c1 = 0, c2 = 0, c3 = 0;
-                trace[i] = '['; //for testing
-
-                i += 2;
-                c1 = parceCollor(trace + i, &i);
-                if (trace[i] == ';')
-                {
-                    i++;
-                    c2 = parceCollor(trace + i, &i);
+                char* colorPos = end;
+                end += 2;
+                c1 = parceCollor(&end);
+                if (*end == ';') {
+                    end++;
+                    c2 = parceCollor(&end);
                 }
-                if (trace[i] == ';')
-                {
-                    i++;
-                    c3 = parceCollor(trace + i, &i);
+                if (*end == ';') {
+                    end++;
+                    c3 = parceCollor(&end);
                 }
-                if (trace[i] == 'm')
+                if (*end == 'm')
                 {
+                    end++;
                     if (!trace_color) trace_color = c1;
                     if (!trace_color) trace_color = c2;
                     if (!trace_color) trace_color = c3;
                 }
-                if (j > send_pos) {
-                    old_color = trace_color;
-                    HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, j - send_pos, trace + send_pos, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
+                if (colorPos > start) {
+                    HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, colorPos - start, start, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
                 }
-                send_pos = i + 1;
+                old_color = trace_color;
+                start = end;
+                end--;
             }
         }
-        if (i > send_pos)
+        if (end > start)
         {
-            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, i - send_pos, trace + send_pos, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
+            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, end - start, start, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
         }
         else if (old_color != trace_color) {
-            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, i - send_pos, trace + send_pos, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
+            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, 0, end, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
         }
 #else // PARCE_COLOR
         if (cb_trace)
