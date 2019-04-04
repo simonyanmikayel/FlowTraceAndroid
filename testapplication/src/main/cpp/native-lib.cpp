@@ -21,7 +21,7 @@ Java_com_example_testapplication_MainActivity_stringFromJNI(
         flowTraceLogWrite = (pfn_FlowTraceLogWrite)dlsym(handle, "AndroidLogWrite");
     sprintf(str, "libflowtrace: %p flowTraceLogWrite: %p\n", handle, flowTraceLogWrite);
     if (flowTraceLogWrite)
-        flowTraceLogWrite(6, __FUNCTION__, __LINE__, "libflowtrace: %p flowTraceLogWrite: %p\n", handle, flowTraceLogWrite);
+        flowTraceLogWrite(0, __FUNCTION__, __LINE__, "libflowtrace: %p flowTraceLogWrite: %p\n", handle, flowTraceLogWrite);
     std::string hello = "Hello from Cpp";
     return env->NewStringUTF(str);
 }

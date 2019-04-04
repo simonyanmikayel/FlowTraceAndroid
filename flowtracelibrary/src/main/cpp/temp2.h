@@ -170,23 +170,9 @@ void dump_rec( LOG_REC* rec )
           rec->this_fn, rec->call_site, rec->fn_line, rec->call_line, rec->data);
 }
 
-static int Severity2Priority(int severity)
-{
-    if (severity == UDP_LOG_FATAL)
-        return ANDROID_LOG_FATAL;
-    else if (severity == UDP_LOG_ERROR)
-        return ANDROID_LOG_ERROR;
-    else if (severity == UDP_LOG_WARNING)
-        return ANDROID_LOG_WARN;
-    else if (severity == UDP_LOG_INFO)
-        return ANDROID_LOG_INFO;
-    else
-        return ANDROID_LOG_DEBUG;
-
-};
 
 // for internal tracing
-void AndroidLogWrite(int severity, const char *fn_name, int call_line, const char *fmt, ...)
+void AndroidLogWrite(int priority, const char *fn_name, int call_line, const char *fmt, ...)
 {
     // Do not use TRACE here
 #ifdef WITH_TRACE
@@ -201,7 +187,7 @@ void AndroidLogWrite(int severity, const char *fn_name, int call_line, const cha
     if (cb < MAX_LOG_LEN)
         cb += vsnprintf(trace + cb, MAX_LOG_LEN - cb, fmt, args);
     trace[MAX_LOG_LEN] = 0;
-    __android_log_write(Severity2Priority(severity), TAG, trace);
+    __android_log_write(priority, TAG, trace);
 
     va_end(args);
 #ifdef WITH_TRACE
@@ -209,19 +195,19 @@ void AndroidLogWrite(int severity, const char *fn_name, int call_line, const cha
 #endif
 }
 
-int FlowTraceSendTrace(UDP_LOG_Severity severity, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, ...)
+int FlowTraceSendTrace(flow_LogPriority priority, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, ...)
 {
     int cb_trace;
     va_list args;
     va_start(args, fmt);
-    cb_trace = SendTrace("", 0, 0, severity, flags, fn_name, cb_fn_name, fn_line, call_line, fmt, args);
+    cb_trace = SendTrace("", 0, 0, priority, flags, fn_name, cb_fn_name, fn_line, call_line, fmt, args);
     va_end(args);
     return cb_trace;
 }
 
 JNIEXPORT void JNICALL
 Java_proguard_inject_FlowTraceWriter_FlowTraceLogTrace(
-        JNIEnv *env, jclass type, jint severity,
+        JNIEnv *env, jclass type, jint priority,
         jstring  thisClassName, jstring thisMethodName, jint thisLineNumber, jint callLineNumber,
         jstring tag, jstring msg, jint flags
 )
@@ -238,7 +224,7 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogTrace(
     }
 
     FlowTraceSendTrace(
-            severity,
+            priority,
             flags, //flags
             fn_name,
             cb_fn_name,
@@ -359,7 +345,7 @@ static int valist_printf(const char *fmt, va_list args)
 // common part
 /////////////////////////////////////////////////////////////////////
 
-static inline void AddTrace(LOG_REC* rec, char* trace, int cb_trace, unsigned char flags, unsigned char color, unsigned char severity) {
+static inline void AddTrace(LOG_REC* rec, char* trace, int cb_trace, unsigned char flags, unsigned char color, unsigned char priority) {
     int len = 0;
     int cur_trace_end = TRACE_OFFSET(rec) + rec->cb_trace;
     if (cb_trace) {
@@ -380,15 +366,15 @@ static inline void AddTrace(LOG_REC* rec, char* trace, int cb_trace, unsigned ch
         rec->log_flags |= LOG_FLAG_NEW_LINE;
     if (!rec->color)
         rec->color = color;
-    if (rec->severity < severity)
-        rec->severity = severity;
+    if (rec->priority < priority)
+        rec->priority = priority;
     //dump_rec(rec);
 }
 
 static inline void MakeRec(LOG_REC* rec, int tid, const char* module_name, int cb_module_name, unsigned int  module_base,
                            const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
                            char* trace, int call_line, unsigned int this_fn,
-                           unsigned int call_site, unsigned char log_type, unsigned char flags, unsigned char color, unsigned char severity) {
+                           unsigned int call_site, unsigned char log_type, unsigned char flags, unsigned char color, unsigned char priority) {
 
     struct timespec time_stamp;
 
@@ -408,7 +394,7 @@ static inline void MakeRec(LOG_REC* rec, int tid, const char* module_name, int c
     rec->log_type = log_type;
     rec->log_flags = flags;
     rec->color = color;
-    rec->severity = severity;
+    rec->priority = priority;
     rec->tid = tid;
     rec->pid = app_pid;
 
@@ -431,7 +417,7 @@ static inline void MakeRec(LOG_REC* rec, int tid, const char* module_name, int c
         memcpy(rec->data + cb_app_name + cb_module_name, fn_name, cb_fn_name);
 
     rec->cb_trace = 0;
-    AddTrace(rec, trace, cb_trace, flags, color, severity);
+    AddTrace(rec, trace, cb_trace, flags, color, priority);
 }
 
 static inline int parceCollor(char* pBuf, int *iSkip)
@@ -454,7 +440,7 @@ static inline int parceCollor(char* pBuf, int *iSkip)
     return color;
 }
 
-int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_base, UDP_LOG_Severity severity, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, va_list args)
+int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_base, flow_LogPriority priority, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, va_list args)
 {
     int cb, i, send_pos = 0;
     va_list arg_copy;
@@ -508,8 +494,8 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
             {
                 if (i > send_pos) {
                     old_color = trace_color;
-                    SendLog( module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, i - send_pos, trace, call_line, 0, 0, LOG_INFO_TRACE, flags | LOG_FLAG_NEW_LINE, trace_color, severity);
-//                    TRACE_INFO("new line ~~~ %d %d %s", trace_color, severity, trace);
+                    SendLog( module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, i - send_pos, trace, call_line, 0, 0, LOG_INFO_TRACE, flags | LOG_FLAG_NEW_LINE, trace_color, priority);
+//                    TRACE_INFO("new line ~~~ %d %d %s", trace_color, priority, trace);
                 }
                 while (trace[i + 1] == '\n' || trace[i + 1] == '\r')
                     i++;
@@ -542,22 +528,22 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
                 }
                 if (j > send_pos) {
                     old_color = trace_color;
-                    SendLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, j - send_pos, trace, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
-//                    TRACE_INFO("color ~~~ %d %d %s", trace_color, severity, trace);
+                    SendLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, j - send_pos, trace, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, priority);
+//                    TRACE_INFO("color ~~~ %d %d %s", trace_color, priority, trace);
                 }
                 send_pos = i + 1;
             }
         }
         if (i > send_pos)
         {
-            SendLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, i - send_pos, trace, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
-//            TRACE_INFO("final ~~~ %d %d %s", trace_color, severity, trace);
+            SendLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, i - send_pos, trace, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, priority);
+//            TRACE_INFO("final ~~~ %d %d %s", trace_color, priority, trace);
         }
         else if (old_color != trace_color) {
-            SendLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, i - send_pos, trace, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
-//            TRACE_INFO("empty ~~~ %d %d %s", trace_color, severity, trace);
+            SendLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, i - send_pos, trace, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, priority);
+//            TRACE_INFO("empty ~~~ %d %d %s", trace_color, priority, trace);
         }
-//        TRACE_INFO("3 ~~~ %d %d %s", trace_color, severity, trace);
+//        TRACE_INFO("3 ~~~ %d %d %s", trace_color, priority, trace);
     }
 
     va_end(arg_copy);
@@ -572,10 +558,10 @@ static void SendRec(LOG_REC* rec) {
     if (rec->len != 0) {
         char *trace = rec->data + TRACE_OFFSET(rec);
         if (rec->log_type == LOG_INFO_TRACE) {
-            __android_log_write(Severity2Priority(rec->severity), TAG, trace);
+            __android_log_write(rec->priority, TAG, trace);
         }
 //        if (rec->log_type == LOG_INFO_TRACE)
-//            TRACE_INFO(" SendRec ~~~ %d %d %d %s", rec->color, rec->severity, rec->cb_trace, trace);
+//            TRACE_INFO(" SendRec ~~~ %d %d %d %s", rec->color, rec->priority, rec->cb_trace, trace);
         net_send(rec);
         rec->len = 0;
     }
@@ -584,7 +570,7 @@ static void SendRec(LOG_REC* rec) {
 void SendLog(const char* module_name, int cb_module_name, unsigned int  module_base,
              const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
              char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
-             unsigned char log_type, unsigned char flags, unsigned char color, unsigned char severity)
+             unsigned char log_type, unsigned char flags, unsigned char color, unsigned char priority)
 {
     static NET_PACK tracePack;
     static NET_PACK logPack;
@@ -595,7 +581,7 @@ void SendLog(const char* module_name, int cb_module_name, unsigned int  module_b
 //        return;
 
 //    if (log_type == LOG_INFO_TRACE)
-//        TRACE_INFO("~~~ NN=%d cb_trace=%d %d %d %s\n", NN, cb_trace, color, severity, trace);
+//        TRACE_INFO("~~~ NN=%d cb_trace=%d %d %d %s\n", NN, cb_trace, color, priority, trace);
 
     //TRACE_INFO("~~~ -> \n");
     enter_critical_section(__FUNCTION__, __LINE__);
@@ -613,22 +599,22 @@ void SendLog(const char* module_name, int cb_module_name, unsigned int  module_b
     if (log_type == LOG_INFO_TRACE) {
         LOG_REC* rec = &tracePack.rec;
         if (rec->len == 0) {
-            MakeRec(rec, tid, module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, severity);
+            MakeRec(rec, tid, module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, priority);
         } else if (    tid == rec->tid
                        && call_line == rec->call_line
                        && rec->len + cb_trace < MAX_NET_BUF
                        && !(flags & LOG_FLAG_NEW_LINE)
                 ) {
             //TRACE_INFO("Flow trace: AddTrace 1 rec->cb_trace=%d cb_trace=%d", rec->cb_trace, cb_trace);
-            AddTrace(rec, trace, cb_trace, flags, color, severity);
+            AddTrace(rec, trace, cb_trace, flags, color, priority);
         } else {
             SendRec(rec);
-            MakeRec(rec, tid, module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, severity);
+            MakeRec(rec, tid, module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, priority);
         }
     } else {
         if (tracePack.rec.len)
             SendRec(&tracePack.rec);
-        MakeRec(&logPack.rec, tid, module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, severity);
+        MakeRec(&logPack.rec, tid, module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, priority);
         SendRec(&logPack.rec);
     }
 #else //_USE_ADB

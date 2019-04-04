@@ -8,16 +8,10 @@ public class FlowTraceWriter {
     static boolean initialized = false;
     public static native int initTraces();
     public static native void FlowTraceLogFlow(int log_type, int log_flags, String thisClassName, String thisMethodName, String callClassName, String callMethodName, int thisID, int callID, int thisLineNumber, int callLineNumber);
-    public static native void FlowTraceLogTrace(int severity, String thisClassName, String thisMethodName, int thisLineNumber, int callLineNumber, String tag, String msg, int flags);
+    public static native void FlowTraceLogTrace(int priority, String thisClassName, String thisMethodName, int thisLineNumber, int callLineNumber, String tag, String msg, int flags);
 
     public static final int LOG_INFO_ENTER = 0;
     public static final int LOG_INFO_EXIT = 1;
-    public static final int LOG_FATAL = 0;
-    public static final int LOG_ERROR = 1;
-    public static final int LOG_WARNING = 2;
-    public static final int LOG_INFO = 3;
-    public static final int LOG_DEBUG = 4;
-    public static final int LOG_COMMON = 5;
     public static final int LOG_FLAG_JAVA = 2;
     public static final int LOG_FLAG_EXCEPTION = 4;
     public static final int LOG_FLAG_RUNNABLE_INIT = 8;
@@ -105,7 +99,8 @@ public class FlowTraceWriter {
         thisMethodName = stack[s1].getMethodName();
         callLineNumber = stack[s1].getLineNumber();
 
-        FlowTraceLogTrace(LOG_DEBUG, thisClassName, thisMethodName, o.hashCode(), callLineNumber, "Runnable id " + o.hashCode(), runnableMethod == 1 ? "<init>" : "run", flags);
+        //first parameter is not used in Java_proguard_inject_FlowTraceWriter_FlowTraceLogTrace
+        FlowTraceLogTrace(0, thisClassName, thisMethodName, o.hashCode(), callLineNumber, "Runnable id " + o.hashCode(), runnableMethod == 1 ? "<init>" : "run", flags);
     }
 
     public static class MethodSignature

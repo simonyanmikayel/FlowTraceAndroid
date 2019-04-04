@@ -155,23 +155,8 @@ void dump_rec( LOG_REC* rec )
           rec->this_fn, rec->call_site, rec->fn_line, rec->call_line, rec->data);
 }
 
-static int Severity2Priority(int severity)
-{
-    if (severity == UDP_LOG_FATAL)
-        return ANDROID_LOG_FATAL;
-    else if (severity == UDP_LOG_ERROR)
-        return ANDROID_LOG_ERROR;
-    else if (severity == UDP_LOG_WARNING)
-        return ANDROID_LOG_WARN;
-    else if (severity == UDP_LOG_INFO)
-        return ANDROID_LOG_INFO;
-    else
-        return ANDROID_LOG_DEBUG;
-
-};
-
 // for internal tracing
-void AndroidLogWrite(int severity, const char *fn_name, int call_line, const char *fmt, ...)
+void AndroidLogWrite(int priority, const char *fn_name, int call_line, const char *fmt, ...)
 {
     // Do not use TRACE here
 #ifdef WITH_TRACE
@@ -186,7 +171,7 @@ void AndroidLogWrite(int severity, const char *fn_name, int call_line, const cha
     if (cb < MAX_LOG_LEN)
         cb += vsnprintf(trace + cb, MAX_LOG_LEN - cb, fmt, args);
     trace[MAX_LOG_LEN] = 0;
-    __android_log_write(Severity2Priority(severity), TAG, trace);
+    __android_log_write(priority, TAG, trace);
 
     va_end(args);
 #ifdef WITH_TRACE
@@ -194,19 +179,19 @@ void AndroidLogWrite(int severity, const char *fn_name, int call_line, const cha
 #endif
 }
 
-int FlowTraceSendTrace(UDP_LOG_Severity severity, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, ...)
+int FlowTraceSendTrace(flow_LogPriority priority, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, ...)
 {
     int cb_trace;
     va_list args;
     va_start(args, fmt);
-    cb_trace = SendTrace("", 0, 0, severity, flags, fn_name, cb_fn_name, fn_line, call_line, fmt, args);
+    cb_trace = SendTrace("", 0, 0, priority, flags, fn_name, cb_fn_name, fn_line, call_line, fmt, args);
     va_end(args);
     return cb_trace;
 }
 
 JNIEXPORT void JNICALL
 Java_proguard_inject_FlowTraceWriter_FlowTraceLogTrace(
-        JNIEnv *env, jclass type, jint severity,
+        JNIEnv *env, jclass type, jint priority,
         jstring  thisClassName, jstring thisMethodName, jint thisLineNumber, jint callLineNumber,
         jstring tag, jstring msg, jint flags
 )
@@ -223,7 +208,7 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogTrace(
     }
 
     FlowTraceSendTrace(
-            severity,
+            0, //overrides jint priority
             flags, //flags
             fn_name,
             cb_fn_name,
@@ -283,7 +268,7 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogFlow(
                      (short)log_type,
                      log_flags|LOG_FLAG_JAVA,
                      0,
-                     UDP_LOG_COMMON
+                     0
     );
 
     (*env)->ReleaseStringUTFChars(env, thisClassName, szThisClassName);
@@ -337,8 +322,8 @@ static int valist_printf(const char *fmt, va_list args)
     return cb_trace;
 }
 
-void AndroidTrace(const char* trace, UDP_LOG_Severity severity) {
-    __android_log_write(Severity2Priority(severity), TAG, trace);
+void AndroidTrace(const char* trace, flow_LogPriority priority) {
+    __android_log_write(priority, TAG, trace);
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -364,7 +349,7 @@ static inline int parceCollor(char** c)
 }
 #endif // PARCE_COLOR
 
-int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_base, UDP_LOG_Severity severity, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, va_list args)
+int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_base, flow_LogPriority priority, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, va_list args)
 {
     char trace[ MAX_LOG_LEN + EXTRA_BUF];
     int cb_trace, i, send_pos = 0;
@@ -398,10 +383,12 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
         char *start = trace;
         char *end = trace;
         flags |= LOG_FLAG_COLOR_PARCED;
-        for (; *end; end++) {
+        while(*end) {
+            while (*(end) >= ' ')
+                end++;
             if (*end == '\n' || *end == '\r') {
                 old_color = trace_color;
-                HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, end - start + 1, start, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
+                HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, end - start + 1, start, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, priority);
                 while (*end == '\n' || *end == '\r')
                     end++;
                 start = end;
@@ -427,24 +414,26 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
                     if (!trace_color) trace_color = c3;
                 }
                 if (colorPos > start) {
-                    HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, colorPos - start, start, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
+                    HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, colorPos - start, start, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, priority);
                 }
                 old_color = trace_color;
                 start = end;
-                end--;
+            }
+            else if (*end) { //*end < ' '
+                end++;
             }
         }
         if (end > start)
         {
-            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, end - start, start, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
+            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, end - start, start, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, priority);
         }
         else if (old_color != trace_color) {
-            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, 0, end, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, severity);
+            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, 0, end, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, priority);
         }
 #else // PARCE_COLOR
         if (cb_trace)
         {
-            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, 0, 0, LOG_INFO_TRACE, 0, flags, severity);
+            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, 0, 0, LOG_INFO_TRACE, 0, flags, priority);
         }
 #endif // PARCE_COLOR
     }
@@ -456,11 +445,11 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
 void SendLog(const char* module_name, int cb_module_name, unsigned int  module_base,
              const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
              char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
-             unsigned char log_type, unsigned char flags, unsigned char color, unsigned char severity)
+             unsigned char log_type, unsigned char flags, unsigned char color, unsigned char priority)
 {
     if (initialized)
     {
-        HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, severity);
+        HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, priority);
     }
 }
 

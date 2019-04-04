@@ -20,20 +20,6 @@
 // https://android.googlesource.com/platform/libnativehelper/+/brillo-m7-dev/include/nativehelper/jni.h
 // You can get the method signatures from class files with javap with -s option: javap -classpath '/path/to/jre/lib/rt.jar' -s java.lang.Throwable
 
-static int priority2severity(int priority)
-{
-    UDP_LOG_Severity severity;
-
-    if (priority == ANDROID_LOG_INFO)
-        severity = UDP_LOG_INFO;
-    else if (priority == ANDROID_LOG_WARN)
-        severity = UDP_LOG_WARNING;
-    else if (priority == ANDROID_LOG_ERROR || priority == ANDROID_LOG_FATAL)
-        severity = UDP_LOG_ERROR;
-    else //if (priority == ANDROID_LOG_VERBOSE || priority == ANDROID_LOG_DEBUG;)
-        severity = UDP_LOG_DEBUG;
-    return severity;
-}
 static void LogString(JNIEnv *env, int priority, char* fn_name, int call_line, jobject tag, jobject msg)
 {
 	const char *s_tag = 0;
@@ -51,8 +37,8 @@ static void LogString(JNIEnv *env, int priority, char* fn_name, int call_line, j
 
 	snprintf(msg_log, sizeof(msg_log) - 1, "%s: %s\n", s_tag ? s_tag : "", s_msg ? s_msg : "");
 	msg_log[sizeof(msg_log) - 1] = 0;
-//    TRACE_INFO("~~~ priority %d severity %d", priority, priority2severity(priority));
-    FlowTraceSendTrace(priority2severity(priority), LOG_FLAG_JAVA, fn_name, -1, 0, call_line, msg_log);
+//    TRACE_INFO("~~~ priority %d priority %d", priority, priority2severity(priority));
+    FlowTraceSendTrace(priority, LOG_FLAG_JAVA, fn_name, -1, 0, call_line, msg_log);
 
 //	backtrace_frame_t frames[256] = {0,};
 //	backtrace_symbol_t symbols[256] = {0,};

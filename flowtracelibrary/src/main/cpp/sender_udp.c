@@ -60,9 +60,9 @@ void startTest() {
 #endif //_TEST_THREAD
 
 static inline void set_last_rec(LOG_REC* rec) {
-    if (last_rec && last_rec->log_type == LOG_INFO_TRACE) {
+    if (last_rec && !(last_rec->log_flags & LOG_FLAG_JAVA) && last_rec->log_type == LOG_INFO_TRACE) {
         char *trace = last_rec->data + TRACE_OFFSET(last_rec);
-        AndroidTrace(trace, last_rec->severity);
+        AndroidTrace(trace, last_rec->priority);
     }
     last_rec = rec;
 }
@@ -248,7 +248,7 @@ static void *send_thread(void *arg) {
     return 0;
 }
 
-static void add_trace(LOG_REC* rec, char* trace, int cb_trace, unsigned char flags, unsigned char severity) {
+static void add_trace(LOG_REC* rec, char* trace, int cb_trace, unsigned char flags, unsigned char priority) {
     int len = 0;
     int cur_len = (last_rec == rec) ? last_rec->len : 0;
     int cur_trace_end = rec->cb_app_name + rec->cb_module_name + rec->cb_fn_name + rec->cb_trace;
@@ -267,14 +267,14 @@ static void add_trace(LOG_REC* rec, char* trace, int cb_trace, unsigned char fla
     rec->len = len;
     curAddPack()->info.data_len += (rec->len - cur_len);
 
-    if (rec->severity < severity)
-        rec->severity = severity;
+    if (rec->priority == 0)
+        rec->priority = priority;
 }
 
 static LOG_REC* add_rec(const char* module_name, int cb_module_name, unsigned int  module_base,
                   const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
                   char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
-                  unsigned char log_type, unsigned char flags, unsigned char color, unsigned char severity) {
+                  unsigned char log_type, unsigned char flags, unsigned char color, unsigned char priority) {
     LOG_REC* rec = 0;
     int rec_len = sizeof(LOG_REC) + cb_app_name + cb_module_name + cb_fn_name + cb_trace;
     if (last_rec) {
@@ -288,7 +288,7 @@ static LOG_REC* add_rec(const char* module_name, int cb_module_name, unsigned in
     rec->nn = ++REC_NN;
     rec->log_type = log_type;
     rec->log_flags = flags;
-    rec->severity = severity;
+    rec->priority = priority;
     rec->color = color;
     rec->tid = tid;
     rec->pid = app_pid;
@@ -312,7 +312,7 @@ static LOG_REC* add_rec(const char* module_name, int cb_module_name, unsigned in
         memcpy(rec->data + cb_app_name + cb_module_name, fn_name, (size_t)cb_fn_name);
 
     rec->cb_trace = 0;
-    add_trace(rec, trace, cb_trace, flags, severity);
+    add_trace(rec, trace, cb_trace, flags, priority);
 
     if (!last_rec) { //new packet
         curAddPack()->info.pack_nn = ++PACK_NN;
@@ -323,15 +323,14 @@ static LOG_REC* add_rec(const char* module_name, int cb_module_name, unsigned in
 
     return rec;
 }
-#define ADD_REC() add_rec(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, severity)
+#define ADD_REC() add_rec(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, priority)
 
 static LOG_REC* add_log(const char* module_name, int cb_module_name, unsigned int  module_base,
               const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
               char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
-              unsigned char log_type, unsigned char flags, unsigned char color, unsigned char severity)
+              unsigned char log_type, unsigned char flags, unsigned char color, unsigned char priority)
 {
     LOG_REC* rec = 0;
-    tid = (int)pthread_self();
 
     if (!fn_name)
         cb_fn_name = 0;
@@ -344,8 +343,14 @@ static LOG_REC* add_log(const char* module_name, int cb_module_name, unsigned in
         cb_module_name = MAX_MODULE_NAME_LEN;
 
     if (last_rec) {
-        if ( log_type == LOG_INFO_TRACE && last_rec->log_type == LOG_INFO_TRACE && tid == last_rec->tid && last_rec->call_line == call_line && curAddPack()->info.data_len + cb_trace < MAX_NET_BUF ) {
-            add_trace(last_rec, trace, cb_trace, flags, severity);
+        if ( log_type == LOG_INFO_TRACE &&
+                last_rec->log_type == LOG_INFO_TRACE &&
+                tid == last_rec->tid &&
+                last_rec->call_line == call_line &&
+//                !(flags & LOG_FLAG_JAVA) &&
+//                !(last_rec->log_flags & LOG_FLAG_JAVA) &&
+                curAddPack()->info.data_len + cb_trace < MAX_NET_BUF ) {
+            add_trace(last_rec, trace, cb_trace, flags, priority);
             rec = last_rec;
         } else {
             rec = ADD_REC();
@@ -356,14 +361,27 @@ static LOG_REC* add_log(const char* module_name, int cb_module_name, unsigned in
 
     return rec;
 }
-#define ADD_LOG() add_log(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, severity)
+#define ADD_LOG() add_log(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, priority)
 
+int cLog = 0;
 void HandleLog(const char* module_name, int cb_module_name, unsigned int  module_base,
              const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
              char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
-             unsigned char log_type, unsigned char flags, unsigned char color, unsigned char severity)
+             unsigned char log_type, unsigned char flags, unsigned char color, unsigned char priority)
 {
+//    if (log_type == LOG_INFO_TRACE) {
+//        char c = trace[cb_trace];
+//        trace[cb_trace] = 0;
+//        TRACE_TEMP("~~~ cLog %d pid %d line %d %s\n", cLog, app_pid, call_line, trace);
+//        trace[cb_trace] = c;
+//        cLog++;
+//    }
+//    if (cLog > 10) {
+//        return;
+//    }
+
     loc_send();
+    tid = (int)pthread_self();
     if (!ADD_LOG()) {
         //curAddPack() is full, add to next
         if (nextAddPack()->info.data_len != 0 && !noRespoce) {

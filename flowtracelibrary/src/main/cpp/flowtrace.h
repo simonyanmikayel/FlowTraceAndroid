@@ -28,27 +28,18 @@
 //#define _TEST_THREAD
 #define PARCE_COLOR
 
-#define TRACE_ERR(fmt, arg...)  { AndroidLogWrite(6, __FUNCTION__, __LINE__, fmt, ##arg); }
-#define TRACE_INFO(fmt, arg...) { AndroidLogWrite(4, __FUNCTION__, __LINE__, fmt, ##arg); }
-#define TRACE_TEMP(fmt, arg...) { AndroidLogWrite(4, __FUNCTION__, __LINE__, fmt, ##arg); }
+#define TRACE_ERR(fmt, arg...)  { AndroidLogWrite(0, __FUNCTION__, __LINE__, fmt, ##arg); }
+#define TRACE_INFO(fmt, arg...) { AndroidLogWrite(0, __FUNCTION__, __LINE__, fmt, ##arg); }
+#define TRACE_TEMP(fmt, arg...) { AndroidLogWrite(0, __FUNCTION__, __LINE__, fmt, ##arg); }
 
 #ifdef WITH_TRACE
-    #define TRACE(fmt, arg...) { AndroidLogWrite(4, __FUNCTION__, __LINE__, fmt, ##arg); }
+    #define TRACE(fmt, arg...) { AndroidLogWrite(0, __FUNCTION__, __LINE__, fmt, ##arg); }
 #else
     #define TRACE(fmt, arg...) {}
 #endif
 
-void AndroidLogWrite(int severity, const char *fn_name, int call_line, const char *fmt, ...);
+void AndroidLogWrite(int priority, const char *fn_name, int call_line, const char *fmt, ...);
 void startTest();
-
-typedef enum {
-    UDP_LOG_FATAL,
-    UDP_LOG_ERROR,
-    UDP_LOG_WARNING,
-    UDP_LOG_INFO,
-    UDP_LOG_DEBUG,
-    UDP_LOG_COMMON,
-} UDP_LOG_Severity;
 
 typedef enum {
     LOG_INFO_ENTER,
@@ -67,7 +58,7 @@ typedef struct
     unsigned char log_type;
     unsigned char log_flags;
     unsigned char color;
-    unsigned char severity;
+    unsigned char priority;
     unsigned int nn;
     short cb_app_name;
     short cb_module_name;
@@ -100,31 +91,53 @@ typedef struct
     char data[MAX_NET_BUF + 16];
 } NET_PACK;
 
+// same as android_LogPriority
+typedef enum _flow_LogPriority {
+    /** For internal use only.  */
+            FLOW_LOG_UNKNOWN = 0,
+    /** The default priority, for internal use only.  */
+            FLOW_LOG_DEFAULT, /* only for SetMinPriority() */
+    /** Verbose logging. Should typically be disabled for a release apk. */
+            FLOW_LOG_VERBOSE,
+    /** Debug logging. Should typically be disabled for a release apk. */
+            FLOW_LOG_DEBUG,
+    /** Informational logging. Should typically be disabled for a release apk. */
+            FLOW_LOG_INFO,
+    /** Warning logging. For use with recoverable failures. */
+            FLOW_LOG_WARN,
+    /** Error logging. For use with unrecoverable failures. */
+            FLOW_LOG_ERROR,
+    /** Fatal logging. For use when aborting. */
+            FLOW_LOG_FATAL,
+    /** For internal use only.  */
+            FLOW_LOG_SILENT, /* only for SetMinPriority(); must be last */
+} flow_LogPriority;
+
 #pragma pack(pop)
 
 void SendLog(const char* module_name, int cb_module_name, unsigned int  module_base,
              const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
              char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
-             unsigned char log_type, unsigned char flags, unsigned char color, unsigned char severity)  __attribute__((used));
+             unsigned char log_type, unsigned char flags, unsigned char color, unsigned char priority)  __attribute__((used));
 
 int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_base,
-        UDP_LOG_Severity severity, int flags,
+        flow_LogPriority priority, int flags,
         const char* fn_name, int cb_fn_name, int fn_line,
         int call_line, const char *fmt, va_list args)  __attribute__((used));
 
 void HandleLog(const char* module_name, int cb_module_name, unsigned int  module_base,
              const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
              char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
-             unsigned char log_type, unsigned char flags, unsigned char color, unsigned char severity)  __attribute__((used));
+             unsigned char log_type, unsigned char flags, unsigned char color, unsigned char priority)  __attribute__((used));
 
-int FlowTraceSendTrace(UDP_LOG_Severity severity, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, ...)  __attribute__((used));
+int FlowTraceSendTrace(flow_LogPriority priority, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, ...)  __attribute__((used));
 void init_dalvik_hook();
 int init_sender(char* ip, int port, short retry_delay, short retry_count);
 void net_send( LOG_REC* rec );
 void dump_rec( LOG_REC* rec );
 void loc_send();
 void unloc_send();
-void AndroidTrace(const char* trace, UDP_LOG_Severity severity);
+void AndroidTrace(const char* trace, flow_LogPriority priority);
 #define TRACE_OFFSET(rec) (rec->cb_app_name + rec->cb_module_name + rec->cb_fn_name)
 
 #endif //FLOWTRACEANDROID_FLOWTRACE_H
