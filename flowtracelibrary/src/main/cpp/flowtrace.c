@@ -433,7 +433,7 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
 #else // PARCE_COLOR
         if (cb_trace)
         {
-            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, 0, 0, LOG_INFO_TRACE, 0, flags, priority);
+            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, 0, 0, LOG_INFO_TRACE, flags, 0, priority);
         }
 #endif // PARCE_COLOR
     }

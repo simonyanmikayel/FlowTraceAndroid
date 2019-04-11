@@ -343,10 +343,13 @@ static LOG_REC* add_log(const char* module_name, int cb_module_name, unsigned in
         cb_module_name = MAX_MODULE_NAME_LEN;
 
     if (last_rec) {
+        int last_trace_end = last_rec->cb_app_name + last_rec->cb_module_name + last_rec->cb_fn_name + last_rec->cb_trace;
         if ( log_type == LOG_INFO_TRACE &&
                 last_rec->log_type == LOG_INFO_TRACE &&
                 tid == last_rec->tid &&
                 last_rec->call_line == call_line &&
+                cb_trace && trace[cb_trace - 1] != '\n' &&
+                last_rec->cb_trace && last_rec->data[last_trace_end - 1] != '\n' &&
 //                !(flags & LOG_FLAG_JAVA) &&
 //                !(last_rec->log_flags & LOG_FLAG_JAVA) &&
                 curAddPack()->info.data_len + cb_trace < MAX_NET_BUF ) {
