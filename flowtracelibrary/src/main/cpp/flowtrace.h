@@ -28,17 +28,17 @@
 //#define _TEST_THREAD
 #define PARCE_COLOR
 
-#define TRACE_ERR(fmt, arg...)  { AndroidLogWrite(0, __FUNCTION__, __LINE__, fmt, ##arg); }
-#define TRACE_INFO(fmt, arg...) { AndroidLogWrite(0, __FUNCTION__, __LINE__, fmt, ##arg); }
-#define TRACE_TEMP(fmt, arg...) { AndroidLogWrite(0, __FUNCTION__, __LINE__, fmt, ##arg); }
+#define TRACE_ERR(fmt, arg...)  { MyAndroidLogWrite(FLOW_LOG_ERROR, __FUNCTION__, __LINE__, fmt, ##arg); }
+#define TRACE_INFO(fmt, arg...) { MyAndroidLogWrite(FLOW_LOG_INFO, __FUNCTION__, __LINE__, fmt, ##arg); }
+#define TRACE_TEMP(fmt, arg...) { MyAndroidLogWrite(FLOW_LOG_DEBUG, __FUNCTION__, __LINE__, fmt, ##arg); }
 
 #ifdef WITH_TRACE
-    #define TRACE(fmt, arg...) { AndroidLogWrite(0, __FUNCTION__, __LINE__, fmt, ##arg); }
+    #define TRACE(fmt, arg...) { MyAndroidLogWrite(FLOW_LOG_DEBUG, __FUNCTION__, __LINE__, fmt, ##arg); }
 #else
     #define TRACE(fmt, arg...) {}
 #endif
 
-void AndroidLogWrite(int priority, const char *fn_name, int call_line, const char *fmt, ...);
+void MyAndroidLogWrite(int priority, const char *fn_name, int call_line, const char *fmt, ...);
 void startTest();
 
 typedef enum {

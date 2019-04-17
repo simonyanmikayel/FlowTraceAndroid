@@ -252,8 +252,10 @@ static int udp_send_cashed_buf(const char* from) {
                     if (sendIndex == copyIndex)
                         copyIndex = nextIndex(sendIndex);;
                 } else {
-                    TRACE_TEMP("Flow trace: could not send. Reseting buffers [from %s pack:%d retry:%d buf_nn: %d]\n",
-                               from, packets[sendIndex].info.pack_nn, packets[sendIndex].info.retry_nn, sendIndex);
+                    TRACE_TEMP(
+                            "Flow trace: could not send. Reseting buffers [from %s pack:%d retry:%d buf_nn: %d]\n",
+                            from, packets[sendIndex].info.pack_nn, packets[sendIndex].info.retry_nn,
+                            sendIndex);
 //                    //memset(packets, 0, sizeof(packets));
 //                    for (int k = 0; k < maxBufIndex; k++) {
 //                        packets[k].info.data_len = 0;

@@ -18,7 +18,7 @@ Java_com_example_testapplication_MainActivity_stringFromJNI(
     static char str[256];
     void* handle = dlopen("libflowtrace.so", RTLD_NOW);
     if (handle)
-        flowTraceLogWrite = (pfn_FlowTraceLogWrite)dlsym(handle, "AndroidLogWrite");
+        flowTraceLogWrite = (pfn_FlowTraceLogWrite)dlsym(handle, "MyAndroidLogWrite");
     sprintf(str, "libflowtrace: %p flowTraceLogWrite: %p\n", handle, flowTraceLogWrite);
     if (flowTraceLogWrite)
         flowTraceLogWrite(0, __FUNCTION__, __LINE__, "libflowtrace: %p flowTraceLogWrite: %p\n", handle, flowTraceLogWrite);

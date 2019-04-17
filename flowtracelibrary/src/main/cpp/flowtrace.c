@@ -156,11 +156,11 @@ void dump_rec( LOG_REC* rec )
 }
 
 // for internal tracing
-void AndroidLogWrite(int priority, const char *fn_name, int call_line, const char *fmt, ...)
+void MyAndroidLogWrite(int priority, const char *fn_name, int call_line, const char *fmt, ...)
 {
     // Do not use TRACE here
 #ifdef WITH_TRACE
-    //fprintf(stderr, "FLOWTRACE -> [AndroidLogWrite] initialized: %d fn_name: %p\n", initialized, fn_name);
+    fprintf(stderr, "Flow trace: -> initialized: %d fn_name: %p\n", initialized, fn_name);
 #endif
     va_list args;
     va_start(args, fmt);
@@ -171,11 +171,11 @@ void AndroidLogWrite(int priority, const char *fn_name, int call_line, const cha
     if (cb < MAX_LOG_LEN)
         cb += vsnprintf(trace + cb, MAX_LOG_LEN - cb, fmt, args);
     trace[MAX_LOG_LEN] = 0;
-    __android_log_write(priority, TAG, trace);
+    AndroidTrace(trace, priority);
 
     va_end(args);
 #ifdef WITH_TRACE
-    //fprintf(stderr, "FLOWTRACE <- [AndroidLogWrite]\n");
+    fprintf(stderr, "Flow trace: <- \n");
 #endif
 }
 
@@ -323,6 +323,10 @@ static int valist_printf(const char *fmt, va_list args)
 }
 
 void AndroidTrace(const char* trace, flow_LogPriority priority) {
+    if (priority < FLOW_LOG_DEBUG)
+        priority = FLOW_LOG_DEBUG;
+    if (priority > FLOW_LOG_ERROR)
+        priority = FLOW_LOG_ERROR;
     __android_log_write(priority, TAG, trace);
 }
 

@@ -13,6 +13,7 @@
 #include "flowtrace.h"
 #include <time.h>
 #include <semaphore.h>
+#include <android/log.h>
 
 extern char* app_name[];
 extern int cb_app_name;
@@ -167,7 +168,8 @@ static int send_pack(NET_PACK* pack) {
     send_again:
     if (sendto(udpSock, pack, pack->info.data_len + sizeof(NET_PACK_INFO), 0,
                (const struct sockaddr *)&send_sin, sizeof(send_sin)) < 0) {
-        TRACE_ERR("Flow trace: sendto error: %s, %d (dest: %s:%d)\n", strerror(errno), errno, net_ip, net_port);
+        TRACE_ERR("Flow trace: sendto error: %s, %d (dest: %s:%d)\n", strerror(errno), errno,
+                  net_ip, net_port);
         stop_udp_trace();
         return 0;
     } else {
@@ -207,6 +209,7 @@ static int send_pack(NET_PACK* pack) {
 }
 
 static void send_cash() {
+//    int prev_noRespoce = noRespoce;
     again:
     if (curSendPack()->info.data_len) {
         if (send_pack(curSendPack())) {
@@ -222,6 +225,8 @@ static void send_cash() {
     } else {
         noRespoce = 0;
     }
+//    if (prev_noRespoce != noRespoce)
+//        TRACE_TEMP("Flow trace: noRespoce %d->%d\n", prev_noRespoce, noRespoce);
 }
 
 static void *send_thread(void *arg) {
@@ -347,7 +352,7 @@ static LOG_REC* add_log(const char* module_name, int cb_module_name, unsigned in
         if ( log_type == LOG_INFO_TRACE &&
                 last_rec->log_type == LOG_INFO_TRACE &&
                 tid == last_rec->tid &&
-                last_rec->call_line == call_line &&
+//                last_rec->call_line == call_line &&
                 cb_trace && trace[cb_trace - 1] != '\n' &&
                 last_rec->cb_trace && last_rec->data[last_trace_end - 1] != '\n' &&
 //                !(flags & LOG_FLAG_JAVA) &&
@@ -372,10 +377,12 @@ void HandleLog(const char* module_name, int cb_module_name, unsigned int  module
              char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
              unsigned char log_type, unsigned char flags, unsigned char color, unsigned char priority)
 {
+//    __android_log_write(priority, "aa", "Flow trace: 21 \n");
+    //AndroidTrace("Flow trace: 3 \n", FLOW_LOG_WARN);
 //    if (log_type == LOG_INFO_TRACE) {
 //        char c = trace[cb_trace];
 //        trace[cb_trace] = 0;
-//        TRACE_TEMP("~~~ cLog %d pid %d line %d %s\n", cLog, app_pid, call_line, trace);
+//        TRACE_TEMP("Flow trace: ~~~ cLog %d pid %d line %d %s\n", cLog, app_pid, call_line, trace);
 //        trace[cb_trace] = c;
 //        cLog++;
 //    }
@@ -387,7 +394,7 @@ void HandleLog(const char* module_name, int cb_module_name, unsigned int  module
     tid = (int)pthread_self();
     if (!ADD_LOG()) {
         //curAddPack() is full, add to next
-        if (nextAddPack()->info.data_len != 0 && !noRespoce) {
+        if (nextAddPack()->info.data_len != 0 && noRespoce != 0) {
             send_cash();
         }
         moveAddPack();

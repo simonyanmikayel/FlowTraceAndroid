@@ -172,11 +172,11 @@ void dump_rec( LOG_REC* rec )
 
 
 // for internal tracing
-void AndroidLogWrite(int priority, const char *fn_name, int call_line, const char *fmt, ...)
+void AndroidLogWrite1(int priority, const char *fn_name, int call_line, const char *fmt, ...)
 {
     // Do not use TRACE here
 #ifdef WITH_TRACE
-    //fprintf(stderr, "FLOWTRACE -> [AndroidLogWrite] initialized: %d fn_name: %p\n", initialized, fn_name);
+    //fprintf(stderr, "FLOWTRACE -> [MyAndroidLogWrite] initialized: %d fn_name: %p\n", initialized, fn_name);
 #endif
     va_list args;
     va_start(args, fmt);
@@ -191,7 +191,7 @@ void AndroidLogWrite(int priority, const char *fn_name, int call_line, const cha
 
     va_end(args);
 #ifdef WITH_TRACE
-    //fprintf(stderr, "FLOWTRACE <- [AndroidLogWrite]\n");
+    //fprintf(stderr, "FLOWTRACE <- [MyAndroidLogWrite]\n");
 #endif
 }
 
