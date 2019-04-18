@@ -132,7 +132,7 @@ void HandleLog(const char* module_name, int cb_module_name, unsigned int  module
 
 int FlowTraceSendTrace(flow_LogPriority priority, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, ...)  __attribute__((used));
 void init_dalvik_hook();
-int init_sender(char* ip, int port, short retry_delay, short retry_count);
+int init_sender(char* ip, int port, int retry_delay, int retry_count);
 void net_send( LOG_REC* rec );
 void dump_rec( LOG_REC* rec );
 void loc_send();

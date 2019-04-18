@@ -28,8 +28,8 @@ int app_pid = 0;
 static char ip[SMAL_BUF_SIZE + 1] = { 0 };
 static int port = 0;
 unsigned int NN = 0;
-static short retry_delay = 0;
-static short retry_count = -1;
+static int retry_delay = 0;
+static int retry_count = -1;
 
 static void get_app_path(char* name, int pid)
 {

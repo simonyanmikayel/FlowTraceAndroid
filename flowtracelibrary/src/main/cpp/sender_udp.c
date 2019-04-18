@@ -136,8 +136,8 @@ static int init_udp_socket() {
 
     if (retryDelay) {
         struct timeval tv;
-        tv.tv_sec = 0;
-        tv.tv_usec = retryDelay; //microseconds
+        tv.tv_sec = retryDelay / 1000000;
+        tv.tv_usec = retryDelay - (tv.tv_sec * 1000000); //microseconds
         if (setsockopt(udpSock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
             TRACE_ERR("Flow trace: faile to set receive timeout: %s, %d\n", strerror(errno), errno);
             stop_udp_trace();
@@ -403,7 +403,7 @@ void HandleLog(const char* module_name, int cb_module_name, unsigned int  module
     unloc_send();
 }
 
-int init_sender(char *p_ip, int p_port, short retry_delay, short retry_count) {
+int init_sender(char *p_ip, int p_port, int retry_delay, int retry_count) {
     net_ip = strdup(p_ip);
     net_port = p_port;
     if (retry_count >= 0 && retry_delay >= 0) {
