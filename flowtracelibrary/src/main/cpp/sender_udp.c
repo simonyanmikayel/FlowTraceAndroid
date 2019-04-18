@@ -36,7 +36,6 @@ static int PACK_NN = 0;
 static int sendIndex = 0; 
 static int addIndex = 0;
 static LOG_REC* last_rec = 0; //if null then curAddPack() have no log rec
-static int tid = 0;
 static struct timespec time_stamp;
 
 #ifdef _TEST_THREAD
@@ -137,7 +136,7 @@ static int init_udp_socket() {
     if (retryDelay) {
         struct timeval tv;
         tv.tv_sec = retryDelay / 1000000;
-        tv.tv_usec = retryDelay - (tv.tv_sec * 1000000); //microseconds
+        tv.tv_usec = retryDelay % 1000000; //microseconds
         if (setsockopt(udpSock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
             TRACE_ERR("Flow trace: faile to set receive timeout: %s, %d\n", strerror(errno), errno);
             stop_udp_trace();
@@ -208,6 +207,16 @@ static int send_pack(NET_PACK* pack) {
     return ret;
 }
 
+static void send_ping() {
+    NET_PACK pack;
+    pack.info.data_len = 0;
+    pack.info.pack_nn = 1;
+    if (send_pack(&pack)) {
+        noRespoce = 0;
+    }
+//    TRACE_TEMP("Flow trace: noRespoce %d\n", noRespoce);
+}
+
 static void send_cash() {
 //    int prev_noRespoce = noRespoce;
     again:
@@ -231,22 +240,25 @@ static void send_cash() {
 
 static void *send_thread(void *arg) {
     TRACE("Flow trace: started send thread\n");
-//    static struct timespec ts;
-//    int iddle_timeout = 1000000000; //1 sec
-//    int ping_timeout =  1000000000; //100 msec
+    static struct timespec ts;
+    int ping_timeout =  1000000000; //1 sec
     while (working) {
-//        clock_gettime(CLOCK_REALTIME, &ts);
-//        ts.tv_nsec += noRespoce ? ping_timeout : iddle_timeout;
-//        ts.tv_sec += ts.tv_nsec / 1000000000;
-//        ts.tv_nsec %= 1000000000;
-//        sem_timedwait(&send_sem, &ts);
-        sem_wait(&send_sem);
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ts.tv_nsec += ping_timeout;
+        ts.tv_sec += ts.tv_nsec / 1000000000;
+        ts.tv_nsec %= 1000000000;
+        sem_timedwait(&send_sem, &ts);
+//        sem_wait(&send_sem);
 
         if (working) {
-            loc_send();
-            //TRACE_TEMP("Flow trace: try send from send_thread\n");
-            send_cash();
-            unloc_send();
+            if (noRespoce) {
+                send_ping();
+            } else {
+                loc_send();
+                //TRACE_TEMP("Flow trace: try send from send_thread\n");
+                send_cash();
+                unloc_send();
+            }
         }
     }
     TRACE("Flow trace: exit send thread\n");
@@ -276,7 +288,7 @@ static void add_trace(LOG_REC* rec, char* trace, int cb_trace, unsigned char fla
         rec->priority = priority;
 }
 
-static LOG_REC* add_rec(const char* module_name, int cb_module_name, unsigned int  module_base,
+static LOG_REC* add_rec(int tid, const char* module_name, int cb_module_name, unsigned int  module_base,
                   const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
                   char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
                   unsigned char log_type, unsigned char flags, unsigned char color, unsigned char priority) {
@@ -328,9 +340,9 @@ static LOG_REC* add_rec(const char* module_name, int cb_module_name, unsigned in
 
     return rec;
 }
-#define ADD_REC() add_rec(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, priority)
+#define ADD_REC() add_rec(tid, module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, priority)
 
-static LOG_REC* add_log(const char* module_name, int cb_module_name, unsigned int  module_base,
+static LOG_REC* add_log(int tid, const char* module_name, int cb_module_name, unsigned int  module_base,
               const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
               char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
               unsigned char log_type, unsigned char flags, unsigned char color, unsigned char priority)
@@ -369,7 +381,7 @@ static LOG_REC* add_log(const char* module_name, int cb_module_name, unsigned in
 
     return rec;
 }
-#define ADD_LOG() add_log(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, priority)
+#define ADD_LOG() add_log(tid, module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, priority)
 
 int cLog = 0;
 void HandleLog(const char* module_name, int cb_module_name, unsigned int  module_base,
@@ -377,6 +389,7 @@ void HandleLog(const char* module_name, int cb_module_name, unsigned int  module
              char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
              unsigned char log_type, unsigned char flags, unsigned char color, unsigned char priority)
 {
+    int tid = (int)pthread_self();
 //    __android_log_write(priority, "aa", "Flow trace: 21 \n");
     //AndroidTrace("Flow trace: 3 \n", FLOW_LOG_WARN);
 //    if (log_type == LOG_INFO_TRACE) {
@@ -390,8 +403,10 @@ void HandleLog(const char* module_name, int cb_module_name, unsigned int  module
 //        return;
 //    }
 
+//    if (noRespoce != 0) {
+//        TRACE_TEMP("Flow trace: noRespoce_2 %d\n", noRespoce);
+//    }
     loc_send();
-    tid = (int)pthread_self();
     if (!ADD_LOG()) {
         //curAddPack() is full, add to next
         if (nextAddPack()->info.data_len != 0 && noRespoce != 0) {
@@ -401,6 +416,9 @@ void HandleLog(const char* module_name, int cb_module_name, unsigned int  module
         ADD_LOG();
     }
     unloc_send();
+//    if (noRespoce != 0) {
+//        TRACE_TEMP("Flow trace: noRespoce_3 %d\n", noRespoce);
+//    }
 }
 
 int init_sender(char *p_ip, int p_port, int retry_delay, int retry_count) {
