@@ -392,7 +392,7 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
                 end++;
             if (*end == '\n' || *end == '\r') {
                 old_color = trace_color;
-                HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, end - start + 1, start, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, priority);
+                HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, end - start + 1, start, call_line, 0, 0, LOG_INFO_TRACE, flags | LOG_FLAG_NEW_LINE, trace_color, priority);
                 while (*end == '\n' || *end == '\r')
                     end++;
                 start = end;

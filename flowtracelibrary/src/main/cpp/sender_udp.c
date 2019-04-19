@@ -175,10 +175,10 @@ static int send_pack(NET_PACK* pack) {
         if (max_retry > 0 && retryDelay > 0) {
             NET_PACK_INFO ack;
             ssize_t cb;
-            int flags;
+            int rcvFlags;
             recv_again:
-            flags = 0; //(pack->info.retry_nn < max_retry) ? 0 : MSG_DONTWAIT;
-            cb = recvfrom(udpSock, &ack, sizeof(ack), flags, (struct sockaddr *) 0, 0);
+            rcvFlags = 0; //(pack->info.retry_nn < max_retry) ? 0 : MSG_DONTWAIT;
+            cb = recvfrom(udpSock, &ack, sizeof(ack), rcvFlags, (struct sockaddr *) 0, 0);
             if (cb != sizeof(ack)) {
                 TRACE("Flow trace: no ack received [%s, %d] pack:%d retry:%d\n", strerror(errno), errno, pack->info.pack_nn,  pack->info.retry_nn);
                 if (pack->info.retry_nn < max_retry) {
@@ -220,7 +220,7 @@ static void send_ping() {
 static void send_cash() {
 //    int prev_noRespoce = noRespoce;
     again:
-    if (curSendPack()->info.data_len) {
+    if (curSendPack()->info.data_len) { // && (last_rec == 0 || last_rec != 0)
         if (send_pack(curSendPack())) {
             noRespoce = 0;
             purgePack(curSendPack());
@@ -231,8 +231,6 @@ static void send_cash() {
         } else {
             noRespoce = 1;
         }
-    } else {
-        noRespoce = 0;
     }
 //    if (prev_noRespoce != noRespoce)
 //        TRACE_TEMP("Flow trace: noRespoce %d->%d\n", prev_noRespoce, noRespoce);
@@ -265,7 +263,7 @@ static void *send_thread(void *arg) {
     return 0;
 }
 
-static void add_trace(LOG_REC* rec, char* trace, int cb_trace, unsigned char flags, unsigned char priority) {
+static void add_trace(LOG_REC* rec, char* trace, int cb_trace, unsigned char flags, unsigned char color, unsigned char priority) {
     int len = 0;
     int cur_len = (last_rec == rec) ? last_rec->len : 0;
     int cur_trace_end = rec->cb_app_name + rec->cb_module_name + rec->cb_fn_name + rec->cb_trace;
@@ -278,6 +276,12 @@ static void add_trace(LOG_REC* rec, char* trace, int cb_trace, unsigned char fla
     rec->cb_trace += cb_trace;
     rec->data[cur_trace_end + cb_trace] = 0;
     len = sizeof(LOG_REC) + cur_trace_end + cb_trace + 1;
+    if (last_rec == rec) {
+		last_rec->log_flags |= flags;
+        if (!last_rec->color)
+            last_rec->color = color;
+    }
+
     // make sure that length is 4-byte aligned
     if (len & 0x3)
         len = ((len / 4) * 4) + 4; //len = ((len >> 2) << 2) + 4;
@@ -297,6 +301,13 @@ static LOG_REC* add_rec(int tid, const char* module_name, int cb_module_name, un
     if (last_rec) {
         if (curAddPack()->info.data_len +  rec_len > MAX_NET_BUF)
             return 0;
+        if (log_type == LOG_INFO_TRACE) {
+            if ( last_rec->log_type != LOG_INFO_TRACE || tid != last_rec->tid) {
+                if (curAddPack()->info.data_len +  rec_len + 200> MAX_NET_BUF) {
+                    return 0;
+                }
+            }
+        }
         rec = (LOG_REC* )(curAddPack()->data + curAddPack()->info.data_len);
     } else {
         rec = (LOG_REC*)(curAddPack()->data);
@@ -329,7 +340,7 @@ static LOG_REC* add_rec(int tid, const char* module_name, int cb_module_name, un
         memcpy(rec->data + cb_app_name + cb_module_name, fn_name, (size_t)cb_fn_name);
 
     rec->cb_trace = 0;
-    add_trace(rec, trace, cb_trace, flags, priority);
+    add_trace(rec, trace, cb_trace, flags, color, priority);
 
     if (!last_rec) { //new packet
         curAddPack()->info.pack_nn = ++PACK_NN;
@@ -360,17 +371,31 @@ static LOG_REC* add_log(int tid, const char* module_name, int cb_module_name, un
         cb_module_name = MAX_MODULE_NAME_LEN;
 
     if (last_rec) {
-        int last_trace_end = last_rec->cb_app_name + last_rec->cb_module_name + last_rec->cb_fn_name + last_rec->cb_trace;
+//        if ( log_type == LOG_INFO_TRACE && last_rec->log_type == LOG_INFO_TRACE) {
+//            int last_trace_start = last_rec->cb_app_name + last_rec->cb_module_name + last_rec->cb_fn_name;
+//            int last_trace_end = last_trace_start + last_rec->cb_trace;
+//            char c1 = last_rec->data[last_trace_end];
+//            char c2 = trace[cb_trace];
+//            last_rec->data[last_trace_end] = 0;
+//            trace[cb_trace] = 0;
+//            TRACE_TEMP("Flow trace: add tid: %d %d, new: %d %d, cb %d %d, %s + %s\n",
+//                       last_rec->tid, tid,
+//                       (last_rec->log_flags & LOG_FLAG_NEW_LINE), (flags & LOG_FLAG_NEW_LINE),
+//                       curAddPack()->info.data_len,  cb_trace,
+//                       last_rec->data + last_trace_start, trace);
+//            last_rec->data[last_trace_end] = c1;
+//            trace[cb_trace] = c2;
+//        }
+
         if ( log_type == LOG_INFO_TRACE &&
                 last_rec->log_type == LOG_INFO_TRACE &&
                 tid == last_rec->tid &&
 //                last_rec->call_line == call_line &&
-                cb_trace && trace[cb_trace - 1] != '\n' &&
-                last_rec->cb_trace && last_rec->data[last_trace_end - 1] != '\n' &&
+                !(last_rec->log_flags & LOG_FLAG_NEW_LINE) &&
 //                !(flags & LOG_FLAG_JAVA) &&
 //                !(last_rec->log_flags & LOG_FLAG_JAVA) &&
                 curAddPack()->info.data_len + cb_trace < MAX_NET_BUF ) {
-            add_trace(last_rec, trace, cb_trace, flags, priority);
+            add_trace(last_rec, trace, cb_trace, flags, color, priority);
             rec = last_rec;
         } else {
             rec = ADD_REC();
