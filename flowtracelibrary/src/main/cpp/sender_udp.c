@@ -219,14 +219,14 @@ static void send_ping() {
 
 static void send_cash() {
 //    int prev_noRespoce = noRespoce;
-    again:
-    if (curSendPack()->info.data_len) { // && (last_rec == 0 || last_rec != 0)
+//    again:
+    if (curSendPack()->info.data_len) { // && (last_rec == 0 || last_rec not in curSendPack)
         if (send_pack(curSendPack())) {
             noRespoce = 0;
             purgePack(curSendPack());
             if (nextSendPack()->info.data_len) {
                 moveSendPack();
-                goto again;
+//                goto again;
             }
         } else {
             noRespoce = 1;
