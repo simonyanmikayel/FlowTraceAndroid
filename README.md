@@ -19,24 +19,29 @@ buildscript {
     }
 }
 ```
-5. In application module **build.gradle** file add:
+5. In **gradle.properties** file add following:
+```
+android.enableR8=false
+```
+6. In application module **build.gradle** file add:
 ```
        debug {
             minifyEnabled true
             proguardFiles "${project.getRootProject().getRootDir()}/flowtraces/flowtrce-rules.pro"
         }
 ```
-6. Copy **libflowtrace.so** file under **src\main\jniLibs\armeabi-v7a** directory of your application module
-7. in your **AndroidManifest.xml** outside of application tag add:
+7. Copy **libflowtrace.so** file under **src\main\jniLibs\armeabi-v7a** directory of your application module
+8. in your **AndroidManifest.xml** outside of application tag add:
 ```
 <uses-permission android:name="android.permission.INTERNET" /> 
 ```
-8. In your android smartphone or android devise simulator under **/data/data** folder create **flowtrace.ini** file.
+9. In your android smartphone or android devise simulator under **/data/data** folder create **flowtrace.ini** file.
 >Note: if you have not permission to **/data/data** folder then create **flowtrace.ini** file under **/data/data/<you_app_name>** folder. 
-9. In **flowtrace.ini** file write IP address of your pc and port number used by FlowTrace.exe application (default is 8888).  For example:
+10. In **flowtrace.ini** file write IP address of your pc and port number used by FlowTrace.exe application (default is 8888).  For example:
 ```
    ip=10.1.2.3
    port=8888
 ```
-10. Run **FlowTrace.exe.** 
-11. Build and install your application.
+11. Run **FlowTrace.exe.** 
+12. Build and install your application.
+
