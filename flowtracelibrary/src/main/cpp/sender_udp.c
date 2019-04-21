@@ -24,8 +24,8 @@ static int net_port;
 static int working = 1;
 static pthread_mutex_t send_mutex;
 static sem_t send_sem;
-static int retryDelay = 20*1000;
-static int max_retry = 5;
+static int retryDelay = 70*1000;
+static int max_retry = 15;
 static int udpSock = -1;
 static struct sockaddr_in send_sin;
 static const short maxBufIndex = 1000;
@@ -108,6 +108,15 @@ static inline void moveAddPack() {
 //    return (i != 0) ? (i - 1) : (maxBufIndex - 1);
 //}
 
+int sem_reset(sem_t *sem)
+{
+    int i = 0;
+    while(sem_trywait(sem) == 0)
+    {
+        i++;
+    }
+    return i;
+}
 void loc_send() {
     pthread_mutex_lock(&send_mutex);
 }
@@ -219,14 +228,14 @@ static void send_ping() {
 
 static void send_cash() {
 //    int prev_noRespoce = noRespoce;
-//    again:
+    again:
     if (curSendPack()->info.data_len) { // && (last_rec == 0 || last_rec not in curSendPack)
         if (send_pack(curSendPack())) {
             noRespoce = 0;
             purgePack(curSendPack());
             if (nextSendPack()->info.data_len) {
                 moveSendPack();
-//                goto again;
+                goto again;
             }
         } else {
             noRespoce = 1;
@@ -244,13 +253,18 @@ static void *send_thread(void *arg) {
         clock_gettime(CLOCK_REALTIME, &ts);
         ts.tv_nsec += ping_timeout;
         ts.tv_sec += ts.tv_nsec / 1000000000;
-        ts.tv_nsec %= 1000000000;
+        ts.tv_nsec %= 9000000000;
         sem_timedwait(&send_sem, &ts);
 //        sem_wait(&send_sem);
 
         if (working) {
+            int sem_count = sem_reset(&send_sem);
             if (noRespoce) {
                 send_ping();
+                if (sem_count && noRespoce) {
+                    //usleep(500000); //1 - 999999 microsecond (max 1 sec)
+                    sleep(1); //seconds
+                }
             } else {
                 loc_send();
                 //TRACE_TEMP("Flow trace: try send from send_thread\n");
