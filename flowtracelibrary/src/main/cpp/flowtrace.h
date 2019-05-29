@@ -26,7 +26,7 @@
 //#define _USE_ADB
 #define _CONTROL_SEND_COUNT
 //#define _TEST_THREAD
-//#define PARCE_COLOR
+#define PARCE_COLOR
 
 #define TRACE_ERR(fmt, arg...)  { MyAndroidLogWrite(FLOW_LOG_ERROR, __FUNCTION__, __LINE__, fmt, ##arg); }
 #define TRACE_INFO(fmt, arg...) { MyAndroidLogWrite(FLOW_LOG_INFO, __FUNCTION__, __LINE__, fmt, ##arg); }
