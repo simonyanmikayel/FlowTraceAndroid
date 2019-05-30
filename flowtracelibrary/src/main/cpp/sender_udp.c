@@ -28,7 +28,7 @@ static int retryDelay = 70*1000;
 static int max_retry = 15;
 static int udpSock = -1;
 static struct sockaddr_in send_sin;
-static const short maxBufIndex = 1000;
+static const short maxBufIndex = 8000;
 static NET_PACK packets[maxBufIndex];
 static int noRespoce = 0;
 static unsigned int REC_NN = 0;
@@ -223,13 +223,13 @@ static void send_ping() {
     if (send_pack(&pack)) {
         noRespoce = 0;
     }
-//    TRACE_TEMP("Flow trace: noRespoce %d\n", noRespoce);
 }
 
-static void send_cash() {
+static void send_cash(const char* func) {
 //    int prev_noRespoce = noRespoce;
     again:
     if (curSendPack()->info.data_len) { // && (last_rec == 0 || last_rec not in curSendPack)
+        //TRACE_TEMP("Flow trace: send_cash pack_nn %d: sendIndex %d: %s\n", curSendPack()->info.pack_nn, sendIndex, func);
         if (send_pack(curSendPack())) {
             noRespoce = 0;
             purgePack(curSendPack());
@@ -241,8 +241,6 @@ static void send_cash() {
             noRespoce = 1;
         }
     }
-//    if (prev_noRespoce != noRespoce)
-//        TRACE_TEMP("Flow trace: noRespoce %d->%d\n", prev_noRespoce, noRespoce);
 }
 
 static void *send_thread(void *arg) {
@@ -267,8 +265,7 @@ static void *send_thread(void *arg) {
                 }
             } else {
                 loc_send();
-                //TRACE_TEMP("Flow trace: try send from send_thread\n");
-                send_cash();
+                send_cash(__FUNCTION__);
                 unloc_send();
             }
         }
@@ -359,6 +356,7 @@ static LOG_REC* add_rec(int tid, const char* module_name, int cb_module_name, un
     if (!last_rec) { //new packet
         curAddPack()->info.pack_nn = ++PACK_NN;
         curAddPack()->info.buff_nn = addIndex;
+        //TRACE_TEMP("Flow trace: added PACK_NN %d: addIndex %d \n", PACK_NN, addIndex );
     }
     set_last_rec(rec);
     sem_post(&send_sem);
@@ -449,15 +447,12 @@ void HandleLog(const char* module_name, int cb_module_name, unsigned int  module
     if (!ADD_LOG()) {
         //curAddPack() is full, add to next
         if (nextAddPack()->info.data_len != 0 && noRespoce != 0) {
-            send_cash();
+            send_cash(__FUNCTION__);
         }
         moveAddPack();
         ADD_LOG();
     }
     unloc_send();
-//    if (noRespoce != 0) {
-//        TRACE_TEMP("Flow trace: noRespoce_3 %d\n", noRespoce);
-//    }
 }
 
 int init_sender(char *p_ip, int p_port, int retry_delay, int retry_count) {
