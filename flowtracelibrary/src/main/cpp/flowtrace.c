@@ -423,7 +423,15 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
                 old_color = trace_color;
                 start = end;
             }
-            else if (*end) { //*end < ' '
+            else if (*end) {
+                if (*end < ' ') {
+                    if (*end == '\t') {
+                        *end = ' ';
+                    }
+                    else {
+                        *end = '?';
+                    }
+                }
                 end++;
             }
         }
