@@ -60,7 +60,9 @@ void startTest() {
 #endif //_TEST_THREAD
 
 static inline void set_last_rec(LOG_REC* rec) {
-    if (last_rec && !(last_rec->log_flags & LOG_FLAG_JAVA) && last_rec->log_type == LOG_INFO_TRACE) {
+    //if (last_rec && !(last_rec->log_flags & LOG_FLAG_JAVA) && last_rec->log_type == LOG_INFO_TRACE)
+    if (last_rec && last_rec->log_type == LOG_INFO_TRACE)
+    {
         char *trace = last_rec->data + TRACE_OFFSET(last_rec);
         AndroidTrace(trace, last_rec->priority);
     }
@@ -426,7 +428,7 @@ void HandleLog(const char* module_name, int cb_module_name, unsigned int  module
              char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
              unsigned char log_type, unsigned char flags, unsigned char color, unsigned char priority)
 {
-    int tid = (int)pthread_self();
+    int tid = (int)gettid();
 //    __android_log_write(priority, "aa", "Flow trace: 21 \n");
     //AndroidTrace("Flow trace: 3 \n", FLOW_LOG_WARN);
 //    if (log_type == LOG_INFO_TRACE) {

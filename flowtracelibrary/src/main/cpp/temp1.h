@@ -393,7 +393,7 @@ static void tcp_send_pack( )
     {
         return;
     }
-    TRACE("Flow trace: Sending %d bytes from thread %d\n", netPackCache->info.data_len + sizeof(NET_PACK_INFO), pthread_self());
+    TRACE("Flow trace: Sending %d bytes from thread %d\n", netPackCache->info.data_len + sizeof(NET_PACK_INFO), gettid());
     netPackCache->info.pack_nn = 0;
     netPackCache->info.retry_nn = 0;
     if( netPackCache->info.data_len && send(tcpSock , netPackCache , netPackCache->info.data_len + sizeof(NET_PACK_INFO), 0) < 0)

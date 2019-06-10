@@ -135,9 +135,9 @@ static void print_log(JNIEnv *env, int priority, jobject tag, jobject msg, jobje
     }
 
     //////////////////////////////////////////////////////////////////////////////////
-    struct jmethod_t j_println_native;
-    resolveStaticMetod(&j_println_native, "android/util/Log",  "println_native",  "(IILjava/lang/String;Ljava/lang/String;)I", env);
-    (*env)->CallStaticIntMethodA(env, j_println_native.cls , j_println_native.mid, args);
+//    struct jmethod_t j_println_native;
+//    resolveStaticMetod(&j_println_native, "android/util/Log",  "println_native",  "(IILjava/lang/String;Ljava/lang/String;)I", env);
+//    (*env)->CallStaticIntMethodA(env, j_println_native.cls , j_println_native.mid, args);
     LogString(env, priority, fn_name, call_line, tag, msg);
 
 //    dalvik_resolve(&dh_log_getStackTraceString, "Landroid/util/Log;",  "getStackTraceString",  "(Ljava/lang/Throwable;)Ljava/lang/String;", 0);
@@ -149,7 +149,7 @@ static void print_log(JNIEnv *env, int priority, jobject tag, jobject msg, jobje
         if (res) {
             args[0].i = 0;
             args[3].l = res;
-            (*env)->CallStaticIntMethodA(env, j_println_native.cls , j_println_native.mid, args);
+//            (*env)->CallStaticIntMethodA(env, j_println_native.cls , j_println_native.mid, args);
             LogString(env, priority, fn_name, call_line, tag, res);
         }
     }
