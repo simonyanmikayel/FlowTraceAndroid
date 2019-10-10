@@ -44,7 +44,7 @@ import java.io.*;
  */
 public class ProGuard
 {
-    public static final String VERSION = "ProGuard, version 6.0.3";
+    public static final String VERSION = "ProGuard, version 6.0.3 for flow traces";
 
     private final Configuration configuration;
     private       ClassPool     programClassPool = new ClassPool();
