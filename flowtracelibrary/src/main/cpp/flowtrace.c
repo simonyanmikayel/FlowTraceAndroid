@@ -160,7 +160,7 @@ void MyAndroidLogWrite(int priority, const char *fn_name, int call_line, const c
 {
     // Do not use TRACE here
 #ifdef WITH_TRACE
-    fprintf(stderr, "Flow trace: -> initialized: %d fn_name: %p\n", initialized, fn_name);
+    fprintf(stderr, "FlowTrace: -> initialized: %d fn_name: %p\n", initialized, fn_name);
 #endif
     va_list args;
     va_start(args, fmt);
@@ -277,15 +277,19 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogFlow(
     (*env)->ReleaseStringUTFChars(env, callMethodName, szCallMethodName);
 }
 
-int FlowTraceInitialize()
+int IniAndroidTraces()
 {
-    int ret = 1;
+//    fprintf(stderr, "FlowTrace -> initialized %d\n", initialized);
+//    return 0;
     if (initialized)
     {
-        TRACE_INFO("already initialized")
+        TRACE_INFO("FlowTrace already initialized")
         return 1;
     }
+    initialized = 1;
 
+    int ret = 1;
+    ret = ret && init_app();
     ret = ret && init_config();
     ret = ret && init_sender(ip, port, retry_delay, retry_count);
 
@@ -293,16 +297,13 @@ int FlowTraceInitialize()
 #ifdef _TEST_THREAD
     startTest();
 #endif //_TEST_THREAD
-    initialized = 1;
+    TRACE_INFO("FlowTrace initialized %d", ret);
     return ret;
 }
 //extern "C"
 JNIEXPORT jint JNICALL
 Java_proguard_inject_FlowTraceWriter_initTraces(JNIEnv *env, jclass type) {
-    int ret = 1;
-    ret = ret && init_app();
-    ret = ret && FlowTraceInitialize();
-    return ret;
+    return IniAndroidTraces();
 }
 
 JNIEXPORT jint JNICALL
