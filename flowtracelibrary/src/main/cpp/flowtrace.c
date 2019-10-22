@@ -277,10 +277,8 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogFlow(
     (*env)->ReleaseStringUTFChars(env, callMethodName, szCallMethodName);
 }
 
-int IniAndroidTraces()
+int InitAndroidTraces()
 {
-//    fprintf(stderr, "FlowTrace -> initialized %d\n", initialized);
-//    return 0;
     if (initialized)
     {
         TRACE_INFO("FlowTrace already initialized")
@@ -303,7 +301,7 @@ int IniAndroidTraces()
 //extern "C"
 JNIEXPORT jint JNICALL
 Java_proguard_inject_FlowTraceWriter_initTraces(JNIEnv *env, jclass type) {
-    return IniAndroidTraces();
+    return InitAndroidTraces();
 }
 
 JNIEXPORT jint JNICALL
