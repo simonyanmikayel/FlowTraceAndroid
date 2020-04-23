@@ -230,15 +230,12 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogFlow(
         JNIEnv *env, jclass type,
         jint log_type, jint log_flags,
         jstring  thisClassName, jstring thisMethodName,
-        jstring callClassName, jstring callMethodName,
         jint thisID, jint callID,
         jint thisLineNumber, jint callLineNumber
 )
 {
     const char *szThisClassName = (*env)->GetStringUTFChars(env, thisClassName, 0);
     const char *szThisMethodName = (*env)->GetStringUTFChars(env, thisMethodName, 0);
-    const char *szCallClassName = (*env)->GetStringUTFChars(env, callClassName, 0);
-    const char *szCallMethodName = (*env)->GetStringUTFChars(env, callMethodName, 0);
 
     char fn_name[MAX_FUNC_NAME_LEN + 1]; //calling this function
     int cb_fn_name = snprintf(fn_name, MAX_FUNC_NAME_LEN, "%s.%s", szThisClassName, szThisMethodName);
@@ -246,13 +243,7 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogFlow(
         cb_fn_name = MAX_FUNC_NAME_LEN;
     }
 
-    char trace[MAX_FUNC_NAME_LEN + 1]; //caller function gous as trace
-    int cb_trace = snprintf(trace, MAX_FUNC_NAME_LEN, "%s.%s", szCallClassName, szCallMethodName);
-    if (cb_trace < 0) {
-        cb_trace = MAX_FUNC_NAME_LEN;
-    }
-
-    //TRACE_INFO("%d %s %s %s (%d) %d [%s] %s %s (%d) %d ", log_type, (log_type == 0 ? "Before -> " : "After <- "), szThisClassName, szThisMethodName, thisID, thisLineNumber, (log_type == 0 ? "->" : "<-"), szCallClassName, szCallMethodName, callID, callLineNumber);
+    TRACE_INFO("type: %d class: %s method: %s id: %d line: %d:%d", log_type, szThisClassName, szThisMethodName, thisID, thisLineNumber, callLineNumber);
 
     //! Very confusing parameters names for SendLog.
     //! This is due to trace for cpp code has oposite flow.
@@ -260,8 +251,8 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogFlow(
                      fn_name, //szCallClassName:szCallMethodName
                      cb_fn_name,
                      thisLineNumber,//fn_line
-                     cb_trace,
-                     trace,//szThisClassName:szThisMethodName
+                     0,
+                     "",
                      callLineNumber,//call_line
                      thisID, //this_fn - callee
                      callID, //call_site - caller
@@ -273,8 +264,6 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogFlow(
 
     (*env)->ReleaseStringUTFChars(env, thisClassName, szThisClassName);
     (*env)->ReleaseStringUTFChars(env, thisMethodName, szThisMethodName);
-    (*env)->ReleaseStringUTFChars(env, callClassName, szCallClassName);
-    (*env)->ReleaseStringUTFChars(env, callMethodName, szCallMethodName);
 }
 
 int InitAndroidTraces()
