@@ -229,41 +229,38 @@ JNIEXPORT void JNICALL
 Java_proguard_inject_FlowTraceWriter_FlowTraceLogFlow(
         JNIEnv *env, jclass type,
         jint log_type, jint log_flags,
-        jstring  thisClassName, jstring thisMethodName,
+        jstring fullMethodName,
         jint thisID, jint callID,
         jint thisLineNumber, jint callLineNumber
 )
 {
-    const char *szThisClassName = (*env)->GetStringUTFChars(env, thisClassName, 0);
-    const char *szThisMethodName = (*env)->GetStringUTFChars(env, thisMethodName, 0);
+    const char *fn_name = (*env)->GetStringUTFChars(env, fullMethodName, 0);
 
-    char fn_name[MAX_FUNC_NAME_LEN + 1]; //calling this function
-    int cb_fn_name = snprintf(fn_name, MAX_FUNC_NAME_LEN, "%s.%s", szThisClassName, szThisMethodName);
-    if (cb_fn_name < 0) {
+    int cb_fn_name = strlen(fn_name);
+    if (cb_fn_name > MAX_FUNC_NAME_LEN) {
         cb_fn_name = MAX_FUNC_NAME_LEN;
     }
 
-    TRACE_INFO("type: %d class: %s method: %s id: %d line: %d:%d", log_type, szThisClassName, szThisMethodName, thisID, thisLineNumber, callLineNumber);
+    //TRACE_INFO("type: %d class: %s method: %s id: %d line: %d:%d", log_type, szMethodName, thisID, thisLineNumber, callLineNumber);
 
     //! Very confusing parameters names for SendLog.
     //! This is due to trace for cpp code has oposite flow.
     SendLog("", 0, 0,
-                     fn_name, //szCallClassName:szCallMethodName
-                     cb_fn_name,
-                     thisLineNumber,//fn_line
-                     0,
-                     "",
-                     callLineNumber,//call_line
-                     thisID, //this_fn - callee
-                     callID, //call_site - caller
-                     (short)log_type,
-                     log_flags|LOG_FLAG_JAVA,
-                     0,
-                     0
+            fn_name,
+             cb_fn_name,
+             thisLineNumber,//fn_line
+             0,
+             "",
+             callLineNumber,//call_line
+             thisID, //this_fn - callee
+             callID, //call_site - caller
+             (short)log_type,
+             log_flags|LOG_FLAG_JAVA,
+             0,
+             0
     );
 
-    (*env)->ReleaseStringUTFChars(env, thisClassName, szThisClassName);
-    (*env)->ReleaseStringUTFChars(env, thisMethodName, szThisMethodName);
+    (*env)->ReleaseStringUTFChars(env, fullMethodName, fn_name);
 }
 
 int InitAndroidTraces()

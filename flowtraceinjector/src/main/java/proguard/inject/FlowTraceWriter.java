@@ -7,7 +7,7 @@ public class FlowTraceWriter {
     private static final boolean DEBUG = false;
     static boolean initialized = false;
     public static native int initTraces();
-    public static native void FlowTraceLogFlow(int log_type, int log_flags, String thisClassName, String thisMethodName, int thisID, int callID, int thisLineNumber, int callLineNumber);
+    public static native void FlowTraceLogFlow(int log_type, int log_flags, String fullMethodName, int thisID, int callID, int thisLineNumber, int callLineNumber);
     public static native void FlowTraceLogTrace(int priority, String thisClassName, String thisMethodName, int thisLineNumber, int callLineNumber, String tag, String msg, int flags);
 
     public static final int LOG_INFO_ENTER = 0;
@@ -21,8 +21,7 @@ public class FlowTraceWriter {
     private static int s_log_type;
     private static int s_log_flags;
     private static int s_thisID;
-    private static String s_thisClassName;
-    private static String s_thisMethodName;
+    private static String s_fullMethodName;
     private static int s_thisLineNumber;
     private static long s_tid;
 
@@ -34,9 +33,9 @@ public class FlowTraceWriter {
     }
 
 
-    static public synchronized void logFlow(int thisID, int log_type, int log_flags, String thisClassName, String thisMethodName, int thisLineNumber) {
+    static public synchronized void logFlow(int thisID, int log_type, int log_flags, String fullMethodName, int thisLineNumber) {
         if (DEBUG)
-            System.out.println( ((log_type == 0) ? "FlowTrace => " : "FlowTrace <= ") + " class: " + thisClassName + " method: " + thisMethodName + " line: " + thisLineNumber + " flags: " + log_flags);
+            System.out.println( ((log_type == 0) ? "FlowTrace => " : "FlowTrace <= ") + " method: " + fullMethodName + " line: " + thisLineNumber + " flags: " + log_flags);
 
         if (!initialized)
             return;
@@ -59,13 +58,12 @@ public class FlowTraceWriter {
 
         if (isOuterLog) {
             if (s_thisID != 0) {
-                FlowTraceLogFlow(s_log_type, s_log_flags, s_thisClassName, s_thisMethodName, s_thisID, 0, s_thisLineNumber, 0);
+                FlowTraceLogFlow(s_log_type, s_log_flags, s_fullMethodName, s_thisID, 0, s_thisLineNumber, 0);
             }
             s_log_type = log_type;
             s_log_flags = log_flags;
             s_thisID = thisID;
-            s_thisClassName = thisClassName;
-            s_thisMethodName = thisMethodName;
+            s_fullMethodName = fullMethodName;
             s_thisLineNumber = thisLineNumber;
             s_tid = tid;
         } else {
@@ -73,10 +71,10 @@ public class FlowTraceWriter {
             if (s_tid == tid && s_thisID == thisID && isEnter) {
                 callLineNumber = s_thisLineNumber;
             } else if (s_thisID != 0) {
-                FlowTraceLogFlow(s_log_type, s_log_flags, s_thisClassName, s_thisMethodName, s_thisID, 0, s_thisLineNumber, 0);
+                FlowTraceLogFlow(s_log_type, s_log_flags, s_fullMethodName, s_thisID, 0, s_thisLineNumber, 0);
             }
 
-            FlowTraceLogFlow(log_type, log_flags, thisClassName, thisMethodName, thisID, 0, thisLineNumber, callLineNumber);
+            FlowTraceLogFlow(log_type, log_flags, fullMethodName, thisID, 0, thisLineNumber, callLineNumber);
 
             s_tid = 0;
             s_thisID = 0;
