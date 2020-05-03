@@ -184,7 +184,7 @@ int FlowTraceSendTrace(flow_LogPriority priority, int flags, const char* fn_name
     int cb_trace;
     va_list args;
     va_start(args, fmt);
-    cb_trace = SendTrace("", 0, 0, priority, flags, fn_name, cb_fn_name, fn_line, call_line, fmt, args);
+    cb_trace = SendTrace("", 0, 0, priority, flags, fn_name, cb_fn_name, fn_line, call_line, 0, fmt, args);
     va_end(args);
     return cb_trace;
 }
@@ -338,7 +338,7 @@ static inline int parceCollor(char** c)
 }
 #endif // PARCE_COLOR
 
-int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_base, flow_LogPriority priority, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, va_list args)
+int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_base, flow_LogPriority priority, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, unsigned int call_site,  const char *fmt, va_list args)
 {
     char trace[ MAX_LOG_LEN + EXTRA_BUF];
     int cb_trace, i, send_pos = 0;
@@ -346,6 +346,7 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
     int old_color = 0;
     va_list arg_copy;
 
+    //call_site = 0;
     va_copy(arg_copy, args);
 
     if (!initialized) {
@@ -377,7 +378,7 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
                 end++;
             if (*end == '\n' || *end == '\r') {
                 old_color = trace_color;
-                HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, end - start + 1, start, call_line, 0, 0, LOG_INFO_TRACE, flags | LOG_FLAG_NEW_LINE, trace_color, priority);
+                HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, end - start + 1, start, call_line, 0, call_site, LOG_INFO_TRACE, flags | LOG_FLAG_NEW_LINE, trace_color, priority);
                 while (*end == '\n' || *end == '\r')
                     end++;
                 start = end;
@@ -403,7 +404,7 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
                     if (!trace_color) trace_color = c3;
                 }
                 if (colorPos > start) {
-                    HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, colorPos - start, start, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, priority);
+                    HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, colorPos - start, start, call_line, 0, call_site, LOG_INFO_TRACE, flags, trace_color, priority);
                 }
                 old_color = trace_color;
                 start = end;
@@ -422,15 +423,15 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
         }
         if (end > start)
         {
-            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, end - start, start, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, priority);
+            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, end - start, start, call_line, 0, call_site, LOG_INFO_TRACE, flags, trace_color, priority);
         }
         else if (old_color != trace_color) {
-            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, 0, end, call_line, 0, 0, LOG_INFO_TRACE, flags, trace_color, priority);
+            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, 0, end, call_line, 0, call_site, LOG_INFO_TRACE, flags, trace_color, priority);
         }
 #else // PARCE_COLOR
         if (cb_trace)
         {
-            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, 0, 0, LOG_INFO_TRACE, flags, 0, priority);
+            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, 0, call_site, LOG_INFO_TRACE, flags, 0, priority);
         }
 #endif // PARCE_COLOR
     }

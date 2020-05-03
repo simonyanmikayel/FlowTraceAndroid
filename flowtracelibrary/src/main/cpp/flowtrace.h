@@ -123,7 +123,7 @@ void SendLog(const char* module_name, int cb_module_name, unsigned int  module_b
 int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_base,
         flow_LogPriority priority, int flags,
         const char* fn_name, int cb_fn_name, int fn_line,
-        int call_line, const char *fmt, va_list args)  __attribute__((used));
+        int call_line, unsigned int call_site, const char *fmt, va_list args)  __attribute__((used));
 
 void HandleLog(const char* module_name, int cb_module_name, unsigned int  module_base,
              const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
