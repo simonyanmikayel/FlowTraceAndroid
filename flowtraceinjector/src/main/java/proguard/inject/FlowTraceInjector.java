@@ -13,6 +13,7 @@ import proguard.classfile.editor.InstructionSequenceBuilder;
 import proguard.classfile.instruction.ConstantInstruction;
 import proguard.classfile.instruction.Instruction;
 import proguard.classfile.instruction.InstructionConstants;
+import proguard.classfile.instruction.InstructionFactory;
 import proguard.classfile.instruction.SimpleInstruction;
 import proguard.classfile.instruction.visitor.InstructionVisitor;
 import proguard.classfile.util.ClassReferenceInitializer;
@@ -20,8 +21,10 @@ import proguard.classfile.util.ClassSubHierarchyInitializer;
 import proguard.classfile.util.ClassUtil;
 import proguard.classfile.util.SimplifiedVisitor;
 import proguard.classfile.visitor.*;
+import proguard.evaluation.value.Value;
 import proguard.io.ClassPathDataEntry;
 import proguard.io.ClassReader;
+import proguard.optimize.evaluation.StoringInvocationUnit;
 import proguard.util.ClassNameParser;
 import proguard.util.ListParser;
 import proguard.util.MultiValueMap;
@@ -34,6 +37,7 @@ import static proguard.classfile.util.ClassUtil.internalClassName;
 import static proguard.inject.FlowTraceWriter.LOG_FLAG_OUTER_LOG;
 import static proguard.inject.FlowTraceWriter.LOG_INFO_ENTER;
 import static proguard.inject.FlowTraceWriter.LOG_INFO_EXIT;
+import static proguard.inject.util.dumpBytes;
 
 public class FlowTraceInjector
         extends SimplifiedVisitor
@@ -44,7 +48,7 @@ public class FlowTraceInjector
         InstructionVisitor
 {
     private static final boolean DEBUG = false;
-    private static final boolean verbose = false; //TODO set as config value
+    private static final boolean verbose = false; //TODO set from config value
     private static final boolean injectRunnable = true;
 
     private final Configuration configuration;
@@ -58,11 +62,21 @@ public class FlowTraceInjector
 
     private int returnOffset;
     private int runnableID = 1;
-    private boolean inRunnable;
+    private boolean isRunnableClass;
+
     private int unknownRef;
     private int invoceInstruction = 0;
     private StringMatcher regularExpressionMatcher;
 
+    static final int ANDROID_LOG_UNKNOWN = 0;
+    static final int ANDROID_LOG_DEFAULT = 1;
+    static final int ANDROID_LOG_VERBOSE = 2;
+    static final int ANDROID_LOG_DEBUG = 3;
+    static final int ANDROID_LOG_INFO = 4;
+    static final int ANDROID_LOG_WARN = 5;
+    static final int ANDROID_LOG_ERROR = 6;
+    static final int ANDROID_LOG_FATAL = 7;
+    static final int ANDROID_LOG_SILENT = 8;
 
     /**
      * Creates a new TraceInjector.
@@ -122,38 +136,38 @@ public class FlowTraceInjector
                         this));
     }
 
-    public void checkRunnable(ProgramClass programClass)
+    private boolean isRunnableClass(ProgramClass programClass)
     {
         if (programClass.getInterfaceCount() < 1)
-            return;
+            return false;
 
         String interfaceName = programClass.getInterfaceName(0);
         if (interfaceName == null)
-            return;
+            return false;
 
-        if (!interfaceName.equals("java/lang/Runnable"))
-            return;
-
-        inRunnable = true;
-        ++runnableID;
+        return interfaceName.equals("java/lang/Runnable");
     }
 
     @Override
     public void visitProgramClass(ProgramClass programClass)
     {
+        String className = programClass.getName();
         if (DEBUG)
         {
-            System.out.println("visitProgramClass: " + programClass.getName());
+            System.out.println("visitProgramClass: " + className);
         }
-        injectedClassMap.put(programClass.getName(), internalClassName(FlowTraceWriter.class.getName()));
-        injectedClassMap.put(programClass.getName(), internalClassName(FlowTraceWriter.MethodSignature.class.getName()));
+        injectedClassMap.put(className, internalClassName(FlowTraceWriter.class.getName()));
+        injectedClassMap.put(className, internalClassName(FlowTraceWriter.MethodSignature.class.getName()));
 
-        inRunnable = false;
+        isRunnableClass = false;
         invoceInstruction = 0;
 
-        if (injectRunnable)
-            checkRunnable(programClass);
+        if (injectRunnable) {
+            isRunnableClass = isRunnableClass(programClass);
+            if (isRunnableClass)
+                ++runnableID;
 
+        }
         ____ = new InstructionSequenceBuilder(programClass, programClassPool, libraryClassPool);
         unknownRef = ____.getConstantPoolEditor().addStringConstant("?", programClass, null);
 
@@ -180,8 +194,8 @@ public class FlowTraceInjector
             try
             {
                 int runnableMethod = 0;
-                if (inRunnable && injectRunnable) {
-                    if (invoceInstruction == InstructionConstants.OP_INVOKEVIRTUAL && method.getName(clazz).equals("run"))
+                if (isRunnableClass) {
+                    if (method.getName(clazz).equals("run"))
                         runnableMethod = 2;
                 }
                 String thisClassName = clazz.getName();
@@ -194,8 +208,6 @@ public class FlowTraceInjector
                     int fullMethodNameRef = ____.getConstantPoolEditor().addStringConstant(fullMethodName, clazz, null);
                     int thisID = thisClassName.hashCode() +  31 * thisMethodName.hashCode();
                     codeAttributeEditor.insertBeforeInstruction(0, logInstruction(thisID, runnableMethod, LOG_INFO_ENTER, 0, fullMethodNameRef, thisLineNumber));
-//                    if (thisClassName.contains("TMCServiceContract"))
-//                        System.out.println("~~~LOG_INFO_ENTER : thisClassName: " + thisClassName + " thisMethodName: " + thisMethodName + " thisLineNumber: " + thisLineNumber + " Descriptor: " + method.getDescriptor(clazz));
                 }
             }
             catch (Exception e)
@@ -228,8 +240,8 @@ public class FlowTraceInjector
                 try
                 {
                     int runnableMethod = 0;
-                    if (inRunnable && injectRunnable) {
-                        if (invoceInstruction == InstructionConstants.OP_INVOKESPECIAL && method.getName(clazz).equals("<init>"))
+                    if (isRunnableClass) {
+                        if (method.getName(clazz).equals("<init>"))
                             runnableMethod = 1;
                     }
 
@@ -243,8 +255,6 @@ public class FlowTraceInjector
                         int fullMethodNameRef = ____.getConstantPoolEditor().addStringConstant(fullMethodName, clazz, null);
                         int thisID = thisClassName.hashCode() +  31 * thisMethodName.hashCode();
                         codeAttributeEditor.insertBeforeInstruction(offset, logInstruction(thisID, runnableMethod, LOG_INFO_EXIT, 0, fullMethodNameRef, thisLineNumber));
-//                        if (thisClassName.contains("TMCServiceContract"))
-//                            System.out.println("~~~LOG_INFO_EXIT : thisClassName: " + thisClassName + " thisMethodName: " + thisMethodName + " thisLineNumber: " + thisLineNumber + " Descriptor: " + method.getDescriptor(clazz));
                     }
                 }
                 catch (Exception e)
@@ -276,12 +286,11 @@ public class FlowTraceInjector
 
             try
             {
-//                String callerClassName = clazz.getName();
-//                String callerMethodName = method.getName(clazz);
                 ProgramClass programClass = (ProgramClass)clazz;
                 RefConstant refConstant = (RefConstant)programClass.getConstant(constantInstruction.constantIndex);
                 String calledClassName = refConstant.getClassName(programClass);
                 String calledMethodName = refConstant.getName(programClass);
+                String calledMethodeType = refConstant.getType(programClass);
                 int calledLineNumber = codeAttribute.getLineNumber(offset);
 
                 if (regularExpressionMatcher.matches(calledClassName))
@@ -291,14 +300,94 @@ public class FlowTraceInjector
                     int fullMethodNameRef = ____.getConstantPoolEditor().addStringConstant(fullMethodName, clazz, null);
                     int thisID = calledClassName.hashCode() +  31 * calledMethodName.hashCode();
                     codeAttributeEditor.insertBeforeInstruction(offset, logInstruction(thisID, 0, LOG_INFO_ENTER, LOG_FLAG_OUTER_LOG,fullMethodNameRef, calledLineNumber));
-//                    if (callerClassName.contains("TMCServiceContract"))
-//                        System.out.println("~~~LOG_INFO_URAP : callerClassName: " + callerClassName + " callerMethodName: " + callerMethodName + " callerLineNumber: " + callerLineNumber + " Descriptor: " + method.getDescriptor(clazz) + " calledClassName: " + calledClassName + " calledMethodName: " + calledMethodName);
                 }
                 else
                 {
                     if (DEBUG)
                     {
                         System.out.println("Skipping: " + calledClassName);
+                    }
+                }
+
+                if (constantInstruction.opcode == InstructionConstants.OP_INVOKESTATIC
+                        && calledClassName.equals("android/util/Log"))
+                {
+                    if (DEBUG)
+                    {
+                        System.out.println("Log method called: " + calledMethodName + " ,lineNumber=" + calledLineNumber + " type=" + calledMethodeType);
+                    }
+                    String methodName = null;
+                    String methodDescriptor = null;
+                    int priority = ANDROID_LOG_UNKNOWN;
+
+                    if (calledMethodName.equals("d"))
+                        priority = ANDROID_LOG_DEBUG;
+                    else if (calledMethodName.equals("i"))
+                        priority = ANDROID_LOG_INFO;
+                    else if (calledMethodName.equals("v"))
+                        priority = ANDROID_LOG_VERBOSE;
+                    else if (calledMethodName.equals("w"))
+                        priority = ANDROID_LOG_WARN;
+                    else if (calledMethodName.equals("e"))
+                        priority = ANDROID_LOG_ERROR;
+
+                    if (calledMethodeType.equals("(Ljava/lang/String;Ljava/lang/String;)I")) {
+                        methodName = "myLog_1";
+                        methodDescriptor = "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;II)I";
+                    }
+                    else if (calledMethodeType.equals("(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I")) {
+                        methodName = "myLog_2";
+                        methodDescriptor = "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/lang/String;II)I";
+                    }
+                    else if (calledMethodeType.equals("(ILjava/lang/String;Ljava/lang/String;)I")) {
+                        methodName = "myLog_3";
+                        methodDescriptor = "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;I)I";
+                    }
+
+                    if (methodName != null && methodDescriptor != null) {
+                        String callerClassName = clazz.getName();
+                        String callerMethodName = method.getName(clazz);
+                        String fullCallerName = callerClassName + "." + callerMethodName;
+                        int fullMethodNameRef = ____.getConstantPoolEditor().addStringConstant(fullCallerName, clazz, null);
+                        ____.ldc_(fullMethodNameRef);
+                        ____.ldc(calledLineNumber);
+                        if (!methodName.equals("myLog_3"))
+                            ____.ldc(priority);
+                        ____.invokestatic(LOGGER_CLASS_NAME, methodName, methodDescriptor);
+                        Instruction[] instructions = ____.instructions();
+                        codeAttributeEditor.replaceInstruction(offset, instructions);
+                    }
+
+                    ConstantInstruction replacementInstruction = new ConstantInstruction();
+                    replacementInstruction.copy(constantInstruction);
+                }
+                else if (constantInstruction.opcode == InstructionConstants.OP_INVOKEVIRTUAL
+                        && calledClassName.equals("java/util/logging/Logger"))
+                {
+                    if (DEBUG)
+                    {
+                        System.out.println("Logger method called: " + calledMethodName + " ,lineNumber=" + calledLineNumber + " type=" + calledMethodeType);
+                    }
+                    String methodName = null;
+                    String methodDescriptor = null;
+                    if (calledMethodeType.equals("(Ljava/util/logging/Level;Ljava/lang/String;)V")) {
+                        methodDescriptor       = "(Ljava/util/logging/Level;Ljava/lang/String;Ljava/lang/String;I)V";
+                        methodName = "myLogger_1";
+                    }
+                    else if (calledMethodeType.equals("(Ljava/util/logging/Level;Ljava/lang/String;Ljava/lang/Throwable;)V")) {
+                        methodDescriptor            = "(Ljava/util/logging/Level;Ljava/lang/String;Ljava/lang/Throwable;Ljava/lang/String;I)V";
+                        methodName = "myLogger_2";
+                    }
+                    if (methodName != null && methodDescriptor != null) {
+                        String callerClassName = clazz.getName();
+                        String callerMethodName = method.getName(clazz);
+                        String fullCallerName = callerClassName + "." + callerMethodName;
+                        int fullMethodNameRef = ____.getConstantPoolEditor().addStringConstant(fullCallerName, clazz, null);
+                        ____.ldc_(fullMethodNameRef);
+                        ____.ldc(calledLineNumber);
+                        ____.invokestatic(LOGGER_CLASS_NAME, methodName, methodDescriptor);
+                        Instruction[] instructions = ____.instructions();
+                        codeAttributeEditor.replaceInstruction(offset, instructions);
                     }
                 }
             }

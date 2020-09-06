@@ -9,6 +9,7 @@ public class FlowTraceWriter {
     public static native int initTraces();
     public static native void FlowTraceLogFlow(int log_type, int log_flags, String fullMethodName, int thisID, int callID, int thisLineNumber, int callLineNumber);
     public static native void FlowTraceLogTrace(int priority, String thisClassName, String thisMethodName, int thisLineNumber, int callLineNumber, String tag, String msg, int flags);
+    public static native int FlowTracePrintLog(int priority, String tag, String msg, Object tr, String methodName, int lineNumber);
 
     public static final int LOG_INFO_ENTER = 0;
     public static final int LOG_INFO_EXIT = 1;
@@ -30,6 +31,32 @@ public class FlowTraceWriter {
             System.loadLibrary("flowtrace");
             initialized = (0 != initTraces());
         }
+    }
+
+    public static int myLog_1(String tag, String msg, String methodName, int lineNumber, int priority) {
+        return FlowTracePrintLog(priority, tag, msg, null, methodName, lineNumber);
+    }
+    public static int myLog_2(String tag, String msg, Throwable tr, String methodName, int lineNumber, int priority) {
+        return FlowTracePrintLog(priority, tag, msg, tr, methodName, lineNumber);
+    }
+    public static int myLog_3(int priority, String tag, String msg, String methodName, int lineNumber) {
+        return FlowTracePrintLog(priority, tag, msg, null, methodName, lineNumber);
+    }
+    private static int LoggingLevel(java.util.logging.Level level) {
+        int priority = 1; // ANDROID_LOG_DEFAULT
+        if (level == java.util.logging.Level.INFO)
+            priority = 4; //ANDROID_LOG_INFO
+        if (level == java.util.logging.Level.WARNING)
+            priority = 5; //ANDROID_LOG_WARN
+        if (level == java.util.logging.Level.SEVERE)
+            priority = 6; //ANDROID_LOG_ERROR
+        return priority;
+    }
+    public static void myLogger_1(java.util.logging.Level level, String msg, String methodName, int lineNumber) {
+        FlowTracePrintLog(LoggingLevel(level), "", msg, null, methodName, lineNumber);
+    }
+    public static void myLogger_2(java.util.logging.Level level, String msg, Throwable tr, String methodName, int lineNumber) {
+        FlowTracePrintLog(LoggingLevel(level), "", msg, tr, methodName, lineNumber);
     }
 
 

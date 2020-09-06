@@ -116,7 +116,14 @@ static int read_config( char* path)
             if (strstr(key, "retry_count")) retry_count = atoi(val);
         }
         fclose(ini_file);
+    } else{
+        TRACE_ERR("Failed to open %s, error: %s, %d\n", path, strerror(errno), errno);
     }
+
+//    retry_delay = 100;
+//    retry_count = 5;
+//    strcpy(ip,"192.168.0.64");
+//    port = 8889;
     if(ip[0] != 0 && port != 0)
     {
         TRACE_INFO("reading %s: ip=%s port=%d\n", path, ip, port);
@@ -130,13 +137,18 @@ static int init_config()
     char ini_path[2 * MAX_APP_PATH_LEN] = {0};
     sprintf(ini_path, "%s/%s", DATA_FOLDER, INI_FILE);
     if (!read_config(ini_path)) {
-        sprintf(ini_path, "%s/%s/%s", DATA_FOLDER, app_name, INI_FILE);
+        char app_name1[MAX_APP_NAME_LEN + 1];
+        strcpy(app_name1, app_name);
+        char* ch = strchr(app_name1, ':');
+        if (ch)
+            *ch = 0;
+        sprintf(ini_path, "%s/%s/%s", DATA_FOLDER, app_name1, INI_FILE);
         read_config(ini_path);
     }
 #ifndef _USE_ADB
     if(ip[0] == 0 || port == 0)
     {
-        TRACE_ERR("Failed to read %s\n", INI_FILE);
+        TRACE_ERR("Failed to read file %s\n", INI_FILE);
         return 0;
     }
 #endif //USE_UDP
@@ -222,6 +234,16 @@ Java_proguard_inject_FlowTraceWriter_FlowTraceLogTrace(
     (*env)->ReleaseStringUTFChars(env, thisMethodName, szThisMethodName);
     (*env)->ReleaseStringUTFChars(env, thisClassName, szTag);
     (*env)->ReleaseStringUTFChars(env, thisMethodName, szMsg);
+}
+
+JNIEXPORT int JNICALL
+Java_proguard_inject_FlowTraceWriter_FlowTracePrintLog(JNIEnv *env, jclass type, int priority, jstring tag, jstring msg, jobject tr, jstring methodName, int lineNumber)
+{
+    const char *fn_name = methodName ? (*env)->GetStringUTFChars(env, methodName, 0) : 0;
+    print_log(env, priority, tag, msg, tr, fn_name, lineNumber);
+    if (methodName)
+        (*env)->ReleaseStringUTFChars(env, methodName, fn_name);
+    return 1;
 }
 
 //extern "C"

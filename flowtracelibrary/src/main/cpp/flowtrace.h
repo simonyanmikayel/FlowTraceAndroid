@@ -5,6 +5,8 @@
 #ifndef FLOWTRACEANDROID_FLOWTRACE_H
 #define FLOWTRACEANDROID_FLOWTRACE_H
 
+#include <jni.h>
+
 #define MAX_NET_BUF 1400 // this size of UDP guaranteed to be send as single package
 //#define MAX_NET_BUF 8*1024 // max UDP datagam is 65515 Bytes
 #define MAX_APP_PATH_LEN 128
@@ -130,6 +132,8 @@ void HandleLog(const char* module_name, int cb_module_name, unsigned int  module
              char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
              unsigned char log_type, unsigned char flags, unsigned char color, unsigned char priority)  __attribute__((used));
 
+void LogString(JNIEnv *env, int priority, char* fn_name, int call_line, jobject tag, jobject msg);
+void print_log(JNIEnv *env, int priority, jobject tag, jobject msg, jobject tr, char* fn_name, int call_line);
 int FlowTraceSendTrace(flow_LogPriority priority, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, ...)  __attribute__((used));
 void init_dalvik_hook();
 int init_sender(char* ip, int port, int retry_delay, int retry_count);

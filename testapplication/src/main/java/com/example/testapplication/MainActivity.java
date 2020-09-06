@@ -34,6 +34,20 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        Log.d(TAG, "onCreate - d1");
+        Log.d(TAG, "onCreate - d2", new Exception("exception thrown"));
+        Log.i(TAG, "onCreate - i1");
+        Log.i(TAG, "onCreate - i2", new Exception("exception thrown"));
+        Log.w(TAG, "onCreate - w1");
+        Log.w(TAG, "onCreate - w2", new Exception("exception thrown"));
+        Log.v(TAG, "onCreate - v1");
+        Log.v(TAG, "onCreate - v2", new Exception("exception thrown"));
+        Log.e(TAG, "onCreate - e1");
+        Log.e(TAG, "onCreate - e2", new Exception("exception thrown"));
+        Log.println(4, TAG, "onCreate - p1");
+        LOGGER.log(Level.INFO, "onCreate - LOGGER msg 1");
+        LOGGER.log(Level.INFO, "onCreate - LOGGER msg 2", new Exception("LOGGER exception thrown"));
+
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -42,10 +56,7 @@ public class MainActivity extends AppCompatActivity {
                 dummy++;
                 doDummy_2();
                 doDummy();
-                LOGGER.log(Level.INFO, "Executing TransactionContactUseCase");
                 Log.d(TAG, "test Flowtrce1");
-                Log.d(TAG, "rn\r\nr\nr\rrnrn\r\n\r\n[");
-                Log.d(TAG, "test Flowtrce2");
                 Log.d(TAG, stringFromJNI());
                 System.loadLibrary("flowtrace");
                 Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG).setAction("Action", null).show();
@@ -55,7 +66,6 @@ public class MainActivity extends AppCompatActivity {
 
         TextView tv = (TextView) findViewById(R.id.sample_text);
         tv.setText(stringFromJNI());
-        Log.d(TAG, "onCreate");
     }
 
     @Override

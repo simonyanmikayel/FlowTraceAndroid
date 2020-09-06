@@ -322,7 +322,7 @@ typedef struct dexstuff_t
 	//dvmCallMethodV_func dvmCallMethodV_fnPtr;
 	//dvmCallMethodA_func dvmCallMethodA_fnPtr;
 	//dvmAddToReferenceTable_func dvmAddToReferenceTable_fnPtr;
-	dvmDecodeIndirectRef_func dvmDecodeIndirectRef_fnPtr;
+	//dvmDecodeIndirectRef_func dvmDecodeIndirectRef_fnPtr;
 	dvmUseJNIBridge_func dvmUseJNIBridge_fnPtr;
 	//dvmFindInstanceField_func dvmFindInstanceField_fnPtr;
 	dvmFindLoadedClass_func dvmFindLoadedClass_fnPtr;
@@ -345,7 +345,7 @@ typedef struct dexstuff_t
 	DalvikNativeMethod *dvm_java_lang_Class;
 #endif
 
-	void *gDvm; // dvm globals !
+	//void *gDvm; // dvm globals !
 
 	int done;
 } dexstuff_t;

@@ -51,45 +51,30 @@ static void* mydlsym(void *hand, const char *name)
 
 static int my_dexstuff_resolv_dvm( void )
 {
-    int ret = 1;
-    d.dvm_hand = dlopen("libdvm.so", RTLD_NOW);
+    d.dvm_hand = dlopen("libdvm.so", RTLD_NOW); //libart.so libdvm.so
     if (0 == d.dvm_hand) {
         TRACE_ERR("dlopen libdvm.so fail\n");
         return 0;
     }
 
-    //ret = ret && ( d.dvmThreadSelf_fnPtr = mydlsym(d.dvm_hand, "_Z13dvmThreadSelfv") );
-    //ret = ret && ( d.dvmStringFromCStr_fnPtr = mydlsym(d.dvm_hand, "_Z32dvmCreateStringFromCstrAndLengthPKcj") );
-    //ret = ret && ( d.dvmGetSystemClassLoader_fnPtr = mydlsym(d.dvm_hand, "_Z23dvmGetSystemClassLoaderv") );
-    //ret = ret && ( d.dvmIsClassInitialized_fnPtr = mydlsym(d.dvm_hand, "_Z21dvmIsClassInitializedPK11ClassObject") );
-    //ret = ret && ( d.dvmInitClass_fnPtr = mydlsym(d.dvm_hand, "dvmInitClass") );
-    ret = ret && ( d.dvmFindVirtualMethodHierByDescriptor_fnPtr = mydlsym(d.dvm_hand, "_Z36dvmFindVirtualMethodHierByDescriptorPK11ClassObjectPKcS3_") );
-    ret = ret && ( d.dvmFindDirectMethodByDescriptor_fnPtr = mydlsym(d.dvm_hand, "_Z31dvmFindDirectMethodByDescriptorPK11ClassObjectPKcS3_") );
-    //ret = ret && ( d.dvmIsStaticMethod_fnPtr = mydlsym(d.dvm_hand, "_Z17dvmIsStaticMethodPK6Method") );
-    //ret = ret && ( d.dvmAllocObject_fnPtr = mydlsym(d.dvm_hand, "dvmAllocObject") );
-    //ret = ret && ( d.dvmCallMethodV_fnPtr = mydlsym(d.dvm_hand, "_Z14dvmCallMethodVP6ThreadPK6MethodP6ObjectbP6JValueSt9__va_list") );
-    //ret = ret && ( d.dvmCallMethodA_fnPtr = mydlsym(d.dvm_hand, "_Z14dvmCallMethodAP6ThreadPK6MethodP6ObjectbP6JValuePK6jvalue") );
-    //ret = ret && ( d.dvmAddToReferenceTable_fnPtr = mydlsym(d.dvm_hand, "_Z22dvmAddToReferenceTableP14ReferenceTableP6Object") );
-    //ret = ret && ( d.dvmSetNativeFunc_fnPtr = mydlsym(d.dvm_hand, "_Z16dvmSetNativeFuncP6MethodPFvPKjP6JValuePKS_P6ThreadEPKt") );
-    ret = ret && ( d.dvmUseJNIBridge_fnPtr = mydlsym(d.dvm_hand, "_Z15dvmUseJNIBridgeP6MethodPv") );
-    ret = ret && ( d.dvmDecodeIndirectRef_fnPtr =  mydlsym(d.dvm_hand, "_Z20dvmDecodeIndirectRefP6ThreadP8_jobject") );
-    //ret = ret && ( d.dvmLinearSetReadWrite_fnPtr = mydlsym(d.dvm_hand, "_Z21dvmLinearSetReadWriteP6ObjectPv") );
-    //ret = ret && ( d.dvmGetCurrentJNIMethod_fnPtr = mydlsym(d.dvm_hand, "_Z22dvmGetCurrentJNIMethodv") );
-    //ret = ret && ( d.dvmFindInstanceField_fnPtr = mydlsym(d.dvm_hand, "_Z20dvmFindInstanceFieldPK11ClassObjectPKcS3_") );
-    //ret = ret && ( d.dvmCallJNIMethod_fnPtr = mydlsym(d.dvm_hand, "_Z16dvmCallJNIMethodPKjP6JValuePK6MethodP6Thread") );
-    ret = ret && ( d.dvmDumpAllClasses_fnPtr = mydlsym(d.dvm_hand, "_Z17dvmDumpAllClassesi") );
-    ret = ret && ( d.dvmDumpClass_fnPtr = mydlsym(d.dvm_hand, "_Z12dvmDumpClassPK11ClassObjecti") );
-    ret = ret && ( d.dvmFindLoadedClass_fnPtr = mydlsym(d.dvm_hand, "_Z18dvmFindLoadedClassPKc") );
-    //ret = ret && ( d.dvmHashForeach_fnPtr = mydlsym(d.dvm_hand, "_Z14dvmHashForeachP9HashTablePFiPvS1_ES1_") );
-    ret = ret && ( d.gDvm = mydlsym(d.dvm_hand, "gDvm") );
+    d.dvmFindVirtualMethodHierByDescriptor_fnPtr = mydlsym(d.dvm_hand, "_Z36dvmFindVirtualMethodHierByDescriptorPK11ClassObjectPKcS3_");
+    d.dvmFindDirectMethodByDescriptor_fnPtr = mydlsym(d.dvm_hand, "_Z31dvmFindDirectMethodByDescriptorPK11ClassObjectPKcS3_");
+    d.dvmUseJNIBridge_fnPtr = mydlsym(d.dvm_hand, "_Z15dvmUseJNIBridgeP6MethodPv");
+    d.dvmDumpAllClasses_fnPtr = mydlsym(d.dvm_hand, "_Z17dvmDumpAllClassesi");
+    d.dvmDumpClass_fnPtr = mydlsym(d.dvm_hand, "_Z12dvmDumpClassPK11ClassObjecti");
+    d.dvmFindLoadedClass_fnPtr = mydlsym(d.dvm_hand, "_Z18dvmFindLoadedClassPKc");
 
-    return ret;
+    return d.dvmFindVirtualMethodHierByDescriptor_fnPtr &&
+           d.dvmFindDirectMethodByDescriptor_fnPtr &&
+           d.dvmUseJNIBridge_fnPtr &&
+           d.dvmDumpAllClasses_fnPtr &&
+           d.dvmDumpClass_fnPtr &&
+           d.dvmFindLoadedClass_fnPtr;
 }
 
 void init_dalvik_hook(void)
 {
-    if ( my_dexstuff_resolv_dvm() )
-        if( do_patch() )
-            //if( init_corkscrew() )
-            ;
+    TRACE_ERR("We do not use dalvik hook\n");
+//    if ( my_dexstuff_resolv_dvm() )
+//        do_patch();
 }

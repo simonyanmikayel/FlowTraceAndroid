@@ -2,8 +2,8 @@ apply plugin: 'com.android.application'
 
 task copyExternals(type: Copy) { task ->
     description = 'Copy externals'
-    //from '${project.getRootProject().getRootDir()}/flowtraceinjector/build/libs'
-    //into '${project.getRootProject().getRootDir()}/flowtraces'
+    from '${project.getRootProject().getRootDir()}/flowtraceinjector/build/libs'
+    into '${project.getRootProject().getRootDir()}/flowtraces'
     from '${project.getRootProject().getRootDir()}/flowtracelibrary/build/intermediates/cmake/release/obj/armeabi-v7a'
     into '${project.getRootProject().getRootDir()}/testapplication/src/main/jniLibs/armeabi-v7a'
 }

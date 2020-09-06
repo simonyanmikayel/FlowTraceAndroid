@@ -1,6 +1,7 @@
-#-injars 'C:\flowtrace\trace_injector\out\production\test'(**.class)
--injars 'c:\flowtrace\FlowTraceAndroid\testapplication\build\intermediates\classes\debug\com\example\testapplication'(MainActivity.class)
--outjars 'c:\flowtrace\FlowTraceAndroid\flowtraceinjector\build\tmp'
+#-injars 'C:\work\_Repos\FlowTraceAndroid\trace_injector\out\production\test'(**.class)
+#-injars 'c:\work\_Repos\FlowTraceAndroid\testapplication\build\intermediates\javac\debug\classes\com\example\testapplication\'(MainActivity.class)
+-injars 'c:\work\_Repos\FlowTraceAndroid\testapplication\build\intermediates\javac\debug\classes\com\example\testapplication\'
+-outjars 'C:\work\_Repos\FlowTraceAndroid\flowtraceinjector\build\tmp'
 
 -verbose
 -dontwarn
