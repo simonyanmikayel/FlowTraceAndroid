@@ -50,6 +50,8 @@ public class FlowTraceInjector
     private static final boolean DEBUG = false;
     private static final boolean verbose = false; //TODO set from config value
     private static final boolean injectRunnable = true;
+    private static final boolean hookLog = true;
+    private static final boolean hookLogger = false;
 
     private final Configuration configuration;
     private CodeAttributeEditor codeAttributeEditor;
@@ -305,11 +307,12 @@ public class FlowTraceInjector
                 {
                     if (DEBUG)
                     {
-                        System.out.println("Skipping: " + calledClassName);
+                        //System.out.println("Skipping: " + calledClassName);
                     }
                 }
 
-                if (constantInstruction.opcode == InstructionConstants.OP_INVOKESTATIC
+
+                if (hookLog && constantInstruction.opcode == InstructionConstants.OP_INVOKESTATIC
                         && calledClassName.equals("android/util/Log"))
                 {
                     if (DEBUG)
@@ -361,7 +364,7 @@ public class FlowTraceInjector
                     ConstantInstruction replacementInstruction = new ConstantInstruction();
                     replacementInstruction.copy(constantInstruction);
                 }
-                else if (constantInstruction.opcode == InstructionConstants.OP_INVOKEVIRTUAL
+                else if (hookLogger && constantInstruction.opcode == InstructionConstants.OP_INVOKEVIRTUAL
                         && calledClassName.equals("java/util/logging/Logger"))
                 {
                     if (DEBUG)
