@@ -183,6 +183,7 @@ void MyAndroidLogWrite(int priority, const char *fn_name, int call_line, const c
     if (cb < MAX_LOG_LEN)
         cb += vsnprintf(trace + cb, MAX_LOG_LEN - cb, fmt, args);
     trace[MAX_LOG_LEN] = 0;
+    //__android_log_write(priority, "FLOW_TRACE_LOG", trace);
     AndroidTrace(trace, priority);
 
     va_end(args);

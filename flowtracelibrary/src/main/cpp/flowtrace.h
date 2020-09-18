@@ -141,6 +141,7 @@ void net_send( LOG_REC* rec );
 void dump_rec( LOG_REC* rec );
 void loc_send();
 void unloc_send();
+void flush_log();
 void AndroidTrace(const char* trace, flow_LogPriority priority);
 #define TRACE_OFFSET(rec) (rec->cb_app_name + rec->cb_module_name + rec->cb_fn_name)
 

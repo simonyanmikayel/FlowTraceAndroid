@@ -14,6 +14,8 @@
 #include <time.h>
 #include <semaphore.h>
 #include <android/log.h>
+#include <signal.h>
+#include "stacktrace.h"
 
 extern char* app_name[];
 extern int cb_app_name;
@@ -457,7 +459,23 @@ void HandleLog(const char* module_name, int cb_module_name, unsigned int  module
     unloc_send();
 }
 
+void flush_log()
+{
+    loc_send();
+    send_cash(__FUNCTION__);
+    unloc_send();
+}
+
+//void sig_handler(int signum)
+//{
+//    flush_log();
+//    SIG_DFL(signum);
+//}
+
 int init_sender(char *p_ip, int p_port, int retry_delay, int retry_count) {
+
+//    signal(SIGSEGV,sig_handler); // Register signal handler
+    init_sigaction();
     net_ip = strdup(p_ip);
     net_port = p_port;
     if (retry_count >= 0 && retry_delay >= 0) {

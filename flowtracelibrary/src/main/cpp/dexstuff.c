@@ -19,7 +19,6 @@
 #include <sys/mman.h>
 #include <dlfcn.h>
 #include "dalvik_globals.h"
-#include "corkscrew.h"
 #include "flowtrace.h"
 
 struct dexstuff_t d;

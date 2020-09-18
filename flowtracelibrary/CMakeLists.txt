@@ -20,11 +20,11 @@ add_library( # Sets the name of the library.
              src/main/cpp/flowtrace.c;
              src/main/cpp/dexstuff.c;
              src/main/cpp/dalivik_patch.c;
-             src/main/cpp/corkscrew.c;
              src/main/cpp/dalvik_hook.c;
              src/main/cpp/sender_udp.c;
-             src/main/cpp/memory_hook.c
-              )
+             src/main/cpp/memory_hook.c;
+        src/main/cpp/stacktrace.c
+        )
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by

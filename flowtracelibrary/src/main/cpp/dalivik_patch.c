@@ -14,7 +14,6 @@
 
 #include "dexstuff.h"
 #include "dalvik_hook.h"
-#include "corkscrew.h"
 #include "flowtrace.h"
 
 // https://android.googlesource.com/platform/libnativehelper/+/brillo-m7-dev/include/nativehelper/jni.h
