@@ -1,6 +1,8 @@
 //
 // Created by misha on 9/23/2018.
 //
+#ifndef _USE_ADB
+
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
@@ -497,3 +499,5 @@ int init_sender(char *p_ip, int p_port, int retry_delay, int retry_count) {
     }
     return ret;
 }
+
+#endif //_USE_ADB

@@ -29,7 +29,7 @@ static void signal_segv(int signum, siginfo_t* info, void*ptr) {
     if (info->si_code >= 0 && info->si_code <= 2)
         {TRACE_ERR("sigaction: info.si_code  = %d (%s)", info->si_code, si_codes[info->si_code]);}
     else
-        {TRACE_ERR("sigaction: info.si_code  = %d (???)");}
+        {TRACE_ERR("sigaction: info.si_code  = %d ", info->si_code);}
     TRACE_ERR("sigaction: info.si_addr  = %p", info->si_addr);
 
     FlowTraceSendTrace(0,0,"",0,0,0, "sigaction: info.si_signo = %d\n", signum);

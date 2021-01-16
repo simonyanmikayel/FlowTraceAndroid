@@ -73,7 +73,7 @@ static int my_dexstuff_resolv_dvm( void )
 
 void init_dalvik_hook(void)
 {
-    TRACE_ERR("We do not use dalvik hook\n");
+    //TRACE_ERR("We do not use dalvik hook\n");
 //    if ( my_dexstuff_resolv_dvm() )
 //        do_patch();
 }

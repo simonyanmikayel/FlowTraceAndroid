@@ -127,13 +127,15 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
         const char* fn_name, int cb_fn_name, int fn_line,
         int call_line, unsigned int call_site, const char *fmt, va_list args)  __attribute__((used));
 
+#ifndef _USE_ADB
 void HandleLog(const char* module_name, int cb_module_name, unsigned int  module_base,
              const char* fn_name, int cb_fn_name, int fn_line, int cb_trace,
              char* trace, int call_line, unsigned int this_fn, unsigned int call_site,
              unsigned char log_type, unsigned char flags, unsigned char color, unsigned char priority)  __attribute__((used));
+#endif
 
-void LogString(JNIEnv *env, int priority, char* fn_name, int call_line, jobject tag, jobject msg);
-void print_log(JNIEnv *env, int priority, jobject tag, jobject msg, jobject tr, char* fn_name, int call_line);
+void LogString(JNIEnv *env, int priority, const char* fn_name, int call_line, jobject tag, jobject msg);
+void print_log(JNIEnv *env, int priority, jobject tag, jobject msg, jobject tr, const char* fn_name, int call_line);
 int FlowTraceSendTrace(flow_LogPriority priority, int flags, const char* fn_name, int cb_fn_name, int fn_line, int call_line, const char *fmt, ...)  __attribute__((used));
 void init_dalvik_hook();
 int init_sender(char* ip, int port, int retry_delay, int retry_count);

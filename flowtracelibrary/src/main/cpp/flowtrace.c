@@ -30,6 +30,10 @@ static int port = 0;
 unsigned int NN = 0;
 static int retry_delay = 0;
 static int retry_count = -1;
+#ifdef _USE_ADB
+static pthread_mutex_t send_mutex;
+static unsigned int REC_NN = 0;
+#endif
 
 static void get_app_path(char* name, int pid)
 {
@@ -145,13 +149,11 @@ static int init_config()
         sprintf(ini_path, "%s/%s/%s", DATA_FOLDER, app_name1, INI_FILE);
         read_config(ini_path);
     }
-#ifndef _USE_ADB
     if(ip[0] == 0 || port == 0)
     {
         TRACE_ERR("Failed to read file %s\n", INI_FILE);
         return 0;
     }
-#endif //USE_UDP
     return 1;
 }
 
@@ -297,9 +299,12 @@ int InitAndroidTraces()
 
     int ret = 1;
     ret = ret && init_app();
+#ifndef _USE_ADB
     ret = ret && init_config();
     ret = ret && init_sender(ip, port, retry_delay, retry_count);
-
+#else
+    pthread_mutex_init(&send_mutex, NULL);
+#endif
     init_dalvik_hook();
 #ifdef _TEST_THREAD
     startTest();
@@ -401,7 +406,7 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
                 end++;
             if (*end == '\n' || *end == '\r') {
                 old_color = trace_color;
-                HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, end - start + 1, start, call_line, 0, call_site, LOG_INFO_TRACE, flags | LOG_FLAG_NEW_LINE, trace_color, priority);
+                SendLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, end - start + 1, start, call_line, 0, call_site, LOG_INFO_TRACE, flags | LOG_FLAG_NEW_LINE, trace_color, priority);
                 while (*end == '\n' || *end == '\r')
                     end++;
                 start = end;
@@ -427,7 +432,7 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
                     if (!trace_color) trace_color = c3;
                 }
                 if (colorPos > start) {
-                    HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, colorPos - start, start, call_line, 0, call_site, LOG_INFO_TRACE, flags, trace_color, priority);
+                    SendLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, colorPos - start, start, call_line, 0, call_site, LOG_INFO_TRACE, flags, trace_color, priority);
                 }
                 old_color = trace_color;
                 start = end;
@@ -446,15 +451,15 @@ int SendTrace(const char* module_name, int cb_module_name, unsigned int  module_
         }
         if (end > start)
         {
-            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, end - start, start, call_line, 0, call_site, LOG_INFO_TRACE, flags, trace_color, priority);
+            SendLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, end - start, start, call_line, 0, call_site, LOG_INFO_TRACE, flags, trace_color, priority);
         }
         else if (old_color != trace_color) {
-            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, 0, end, call_line, 0, call_site, LOG_INFO_TRACE, flags, trace_color, priority);
+            SendLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, 0, end, call_line, 0, call_site, LOG_INFO_TRACE, flags, trace_color, priority);
         }
 #else // PARCE_COLOR
         if (cb_trace)
         {
-            HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, 0, call_site, LOG_INFO_TRACE, flags, 0, priority);
+            SendLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, 0, call_site, LOG_INFO_TRACE, flags, 0, priority);
         }
 #endif // PARCE_COLOR
     }
@@ -470,7 +475,57 @@ void SendLog(const char* module_name, int cb_module_name, unsigned int  module_b
 {
     if (initialized)
     {
+#ifndef _USE_ADB
         HandleLog(module_name, cb_module_name, module_base, fn_name, cb_fn_name, fn_line, cb_trace, trace, call_line, this_fn, call_site, log_type, flags, color, priority);
+#else
+        #define MAX_LOG_SIZE 4000
+        static char ft_log_buf[MAX_LOG_SIZE + 1];
+
+        pthread_mutex_lock(&send_mutex);
+        int tid = (int)gettid();
+        if (priority < FLOW_LOG_DEBUG)
+            priority = FLOW_LOG_DEBUG;
+        if (priority > FLOW_LOG_ERROR)
+            priority = FLOW_LOG_ERROR;
+
+        if (cb_fn_name == 0 && fn_name)
+            cb_fn_name = strlen(fn_name);
+
+        if (cb_fn_name < 0 || cb_fn_name > 1000)
+        {
+            cb_fn_name = 0;
+        }
+
+        //struct timespec time_stamp;
+        //clock_gettime( CLOCK_REALTIME, &time_stamp );
+        unsigned int sec = 0;//(unsigned int)time_stamp.tv_sec;
+        unsigned int msec = 0;//(unsigned int)(time_stamp.tv_nsec / 1000000);
+
+        int cbHeader = sprintf(ft_log_buf, "%d~%d~%d~%d~%d~%d~%d~%d~%d~%d~%u~%u~%d~%d~%d~%u~%u~",
+                    REC_NN++, app_pid, tid, priority, cb_app_name, cb_module_name, cb_fn_name, fn_line, cb_trace, call_line, this_fn - module_base, call_site - module_base, log_type, flags, color, sec, msec );
+
+        int cb = cbHeader;
+        ft_log_buf[cb] = 0;
+        cb += snprintf(ft_log_buf + cb, MAX_LOG_SIZE - cb, "%d:%s%s",
+                           cbHeader, app_name ? app_name : "", module_name ? module_name : "");
+        ft_log_buf[cb] = 0;
+        if (cb_fn_name && fn_name) {
+            memcpy(ft_log_buf + cb, fn_name, cb_fn_name);
+            cb += cb_fn_name;
+            ft_log_buf[cb] = 0;
+        }
+        if (cb_trace && trace) {
+            if (cb + cb_trace >= MAX_LOG_SIZE )
+                cb_trace -=  (MAX_LOG_SIZE - cb);
+            memcpy(ft_log_buf + cb, trace, cb_trace);
+            cb += cb_trace;
+            ft_log_buf[cb] = 0;
+        }
+        ft_log_buf[cb] = 0;
+        __android_log_write( priority, "FLOW_TRACE_INFO",ft_log_buf );
+        //TRACE_INFO("%d %d %s", REC_NN, cb, buf);
+        pthread_mutex_unlock(&send_mutex);
+#endif
     }
 }
 

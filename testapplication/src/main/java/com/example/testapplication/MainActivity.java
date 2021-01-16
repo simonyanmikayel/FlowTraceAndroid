@@ -44,7 +44,7 @@ public class MainActivity extends AppCompatActivity {
         Log.v(TAG, "onCreate - v2", new Exception("exception thrown"));
         Log.e(TAG, "onCreate - e1");
         Log.e(TAG, "onCreate - e2", new Exception("exception thrown"));
-        Log.println(4, TAG, "onCreate - p1");
+        Log.println(Log.INFO, TAG, "onCreate - p1");
         LOGGER.log(Level.INFO, "onCreate - LOGGER msg 1");
         LOGGER.log(Level.INFO, "onCreate - LOGGER msg 2", new Exception("LOGGER exception thrown"));
 

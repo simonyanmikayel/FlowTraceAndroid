@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="CompilerConfiguration">
-    <bytecodeTargetLevel>
+    <bytecodeTargetLevel target="1.7">
+      <module name="FlowTraceAndroid.flowtracelibrary" target="1.8" />
+      <module name="FlowTraceAndroid.testapplication" target="1.8" />
       <module name="flowtraceinjector" target="1.7" />
     </bytecodeTargetLevel>
   </component>

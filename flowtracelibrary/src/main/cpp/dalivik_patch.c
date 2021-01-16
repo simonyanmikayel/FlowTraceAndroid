@@ -19,7 +19,7 @@
 // https://android.googlesource.com/platform/libnativehelper/+/brillo-m7-dev/include/nativehelper/jni.h
 // You can get the method signatures from class files with javap with -s option: javap -classpath '/path/to/jre/lib/rt.jar' -s java.lang.Throwable
 
-void LogString(JNIEnv *env, int priority, char* fn_name, int call_line, jobject tag, jobject msg)
+void LogString(JNIEnv *env, int priority, const char* fn_name, int call_line, jobject tag, jobject msg)
 {
 	const char *s_tag = 0;
 	const char *s_msg = 0;
@@ -37,7 +37,7 @@ void LogString(JNIEnv *env, int priority, char* fn_name, int call_line, jobject 
 	snprintf(msg_log, sizeof(msg_log) - 1, "%s: %s\n", s_tag ? s_tag : "", s_msg ? s_msg : "");
 	msg_log[sizeof(msg_log) - 1] = 0;
 //    TRACE_INFO("~~~ priority %d priority %d", priority, priority2severity(priority));
-    FlowTraceSendTrace(priority, LOG_FLAG_JAVA, fn_name, -1, 0, call_line, msg_log);
+    FlowTraceSendTrace(priority, LOG_FLAG_JAVA, fn_name, 0, 0, call_line, msg_log);
 
 //	backtrace_frame_t frames[256] = {0,};
 //	backtrace_symbol_t symbols[256] = {0,};
@@ -59,7 +59,7 @@ void LogString(JNIEnv *env, int priority, char* fn_name, int call_line, jobject 
 //static struct dalvik_hook_t dh_log_println_native;
 //static struct dalvik_hook_t dh_log_getStackTraceString;
 
-void print_log(JNIEnv *env, int priority, jobject tag, jobject msg, jobject tr, char* fn_name, int call_line)
+void print_log(JNIEnv *env, int priority, jobject tag, jobject msg, jobject tr, const char* fn_name, int call_line)
 {
     if (!tag)
         tag = (*env)->NewStringUTF(env, "null");
@@ -114,8 +114,8 @@ void print_log(JNIEnv *env, int priority, jobject tag, jobject msg, jobject tr, 
                     const char *s_className = (*env)->GetStringUTFChars(env, className, 0);
                     const char *s_methodName = (*env)->GetStringUTFChars(env, methodName, 0);
 
-                    snprintf(fn_name, sizeof(fn_name) - 1, "%s.%s", s_className, s_methodName);
-                    fn_name[sizeof(fn_name) - 1] = 0;
+                    snprintf(fn_name_buf, sizeof(fn_name_buf) - 1, "%s.%s", s_className, s_methodName);
+                    fn_name_buf[sizeof(fn_name_buf) - 1] = 0;
                     call_line = lineNumber;
 
 //                char msg_log[MAX_LOG_LEN];
